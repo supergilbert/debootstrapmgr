@@ -4,6 +4,7 @@
 
 * This software run under root privilegies
   * It can erase all your device data
+    * It may not be fully tested
 
 debootstrapmgr is licensed under the MIT License, see [LICENSE.txt](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) for more information.
 
