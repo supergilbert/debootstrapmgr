@@ -36,6 +36,7 @@ qemu-system-x86
 
       pc-debootstrap  Use debootstrap to generate a default pc chroot
       rpi-debootstrap Use debootstrap to generate a default rpi chroot
+                      (Need armhf architecture dpkg --print-foreign-architectures)
       chroot-exec     Exec command in a chroot disabling its service start
       chroot          Run chroot (in the specified directory) and disabling its
                       service start
@@ -49,8 +50,9 @@ qemu-system-x86
       rpi-flashchroot-to-blk       Flash a rpi chroot to an raw image file
       rpi-flashchroot-to-partclone Flash a rpi chroot to partclones tgz image
       rpi-flashpartclone-to-blk    Flash a partclones tgz image to a block device
-      rpi-chroot-livedir           Generate filesquash live system directory from chroot
+      rpi-chroot-to-livedir        Generate filesquash live system directory from
+                                   chroot
 
 ## TODO
 
-A flash tool that generate fstab partition and bootload from a file format.
+A flash tool that generate fstab partition and bootload from a file format and chroot directory.

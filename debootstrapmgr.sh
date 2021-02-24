@@ -31,20 +31,22 @@ Chroot commands
 
   pc-debootstrap  Use debootstrap to generate a default pc chroot
   rpi-debootstrap Use debootstrap to generate a default rpi chroot
+                  (Need armhf architecture dpkg --print-foreign-architectures)
   chroot-exec     Exec command in a chroot disabling its service start
   chroot          Run chroot (in the specified directory) and disabling its
                   service start
 
 Flash commands (/!\ caution in what you are flashing)
   (Following commands use a default RPI and PC partition schema.
-   Searching for a way to bind debian bootload mechanism partition table and ...
-   fstab)
+   Searching for a way to bind the chroot directory with debian bootload
+   mechanism, partition table and fstab)
 
   pc-flashchroot-to-img        Flash a pc chroot to an raw image file
   rpi-flashchroot-to-blk       Flash a rpi chroot to an raw image file
   rpi-flashchroot-to-partclone Flash a rpi chroot to partclones tgz image
   rpi-flashpartclone-to-blk    Flash a partclones tgz image to a block device
-  rpi-chroot-livedir           Generate filesquash live system directory from chroot
+  rpi-chroot-to-livedir        Generate filesquash live system directory from
+                               chroot
 "
 
 if [ $# -lt 1 ]; then
@@ -133,7 +135,7 @@ case $DMGR_CMD_NAME in
         echo_notify "Rpi image done at $2"
         ;;
 
-    "rpi-chroot-livedir")
+    "rpi-chroot-to-livedir")
         shift
 
         . ${DMGR_CURRENT_DIR}/functions_flash.sh
