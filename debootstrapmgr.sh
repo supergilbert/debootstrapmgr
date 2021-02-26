@@ -46,7 +46,8 @@ Flash commands (/!\ caution in what you are flashing)
   rpi-flashchroot-to-partclone Flash a rpi chroot to partclones tgz image
   rpi-flashpartclone-to-blk    Flash a partclones tgz image to a block device
   rpi-chroot-to-livedir        Generate filesquash live system directory from
-                               chroot
+                               chroot (with home directory linked from medium
+                               in rw mode)
 "
 
 if [ $# -lt 1 ]; then

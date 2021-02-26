@@ -623,30 +623,34 @@ dtoverlay=vc4-fkms-v3d
 dtparam=audio=on
 disable_overscan=1
 EOF
+#     cat <<EOF > ${2}/tmpdir/boot/cmdline.txt
+# live-media=/dev/mmcblk0p1 rootwait cma=512M boot=live components persistence-path=/live/home_persistence persistence-method=home-rw
+# EOF
     cat <<EOF > ${2}/tmpdir/boot/cmdline.txt
 live-media=/dev/mmcblk0p1 rootwait cma=512M boot=live components
 EOF
 
-    # Remount rw live medium
-    cat <<EOF > ${2}/tmpdir/lib/systemd/system/remount-medium.service
-[Unit]
-Description=Remount rw the medium
-After=systemd-udevd.service
+#     # Remount rw live medium
+#     cat <<EOF > ${2}/tmpdir/lib/systemd/system/remount-medium.service
+# [Unit]
+# Description=Remount rw the medium
+# After=systemd-udevd.service
 
-[Service]
-ExecStart=/usr/bin/mount -o remount,rw,sync /run/live/medium
-Type=oneshot
-RemainAfterExit=true
+# [Service]
+# ExecStart=/usr/bin/mount -o remount,sync,umask=0000 /run/live/medium
+# Type=oneshot
+# RemainAfterExit=true
 
-[Install]
-WantedBy=multi-user.target
-EOF
+# [Install]
+# WantedBy=multi-user.target
+# EOF
 
     echo_notify "Setting up live system file architecture"
     mv ${2}/tmpdir/boot/* ${2}/
     mkdir ${2}/live
-    mv ${2}/tmpdir/home ${2}/live/
-    ln -s /boot/live/home ${2}/tmpdir/home
+    # touch ${2}/live/home_persistence
+    # mv ${2}/tmpdir/home ${2}/live/
+    # ln -s /run/live/medium/live/home ${2}/tmpdir/home
     mksquashfs ${2}/tmpdir ${2}/live/filesystem.squashfs
     rm -rf ${2}/tmpdir
 
