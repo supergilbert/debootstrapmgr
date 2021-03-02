@@ -148,7 +148,6 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
 OPTIONS:
   -a, --add-package=<PKG>           Add following package to the image
   -C, --apt-cacher=<APT_CACHE_ADDR> Use an apt cache proxy
-  -c <COMMAND>, --command=<COMMAND> Run the specified command
   -d <DEST>, --destination <DEST>   Destination file (tar gzip)
   -D, --distribution=<DIST>         Set the distribution
   -e, --exec=<EXE>                  Multiple call of this option will add
@@ -163,7 +162,7 @@ OPTIONS:
   -h, --help                        Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:c:C:d:D:e:hH:np:s' -l 'add-package:,apt-cacher:,command:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,sysv' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,sysv' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -182,12 +181,6 @@ OPTIONS:
                 DMGR_APT_CACHER="$1"
                 shift
                 ;;
-            '-c'|'--command')
-                shift
-                DMGR_CMD="$1"
-                shift
-                ;;
-
             '-d'|'--destination')
                 shift
                 DMGR_CHROOT_DIR="$1"
@@ -263,7 +256,7 @@ OPTIONS:
     fi
 }
 
-_chroot_add_pkg_or_run_exe_n_cmd ()
+_chroot_add_pkg_n_run_exe ()
 {
     local _CHROOT_DIR="$1"
 
@@ -276,12 +269,6 @@ _chroot_add_pkg_or_run_exe_n_cmd ()
     if [ -n "$DMGR_EXE_LIST" ]; then
         echo_notify "Executing: $DMGR_EXE_LIST"
         run_in_root_system "$_CHROOT_DIR" $DMGR_EXE_LIST
-    fi
-
-
-    if [ -n "$DMGR_CMD" ]; then
-        echo_notify "Executing command: $DMGR_CMD"
-        chroot ${_CHROOT_DIR} /bin/sh -c "$DMGR_CMD"
     fi
 }
 
@@ -359,7 +346,7 @@ EOF
 
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
-    _chroot_add_pkg_or_run_exe_n_cmd "$DMGR_CHROOT_DIR"
+    _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
 
@@ -461,7 +448,7 @@ EOF
 
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
-    _chroot_add_pkg_or_run_exe_n_cmd "$DMGR_CHROOT_DIR"
+    _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
 
@@ -511,12 +498,6 @@ OPTIONS:
                 shift
                 ;;
 
-            '-c'|'--command')
-                shift
-                DMGR_CMD="$1"
-                shift
-                ;;
-
             '-e'|'--executable')
                 shift
                 DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
@@ -550,11 +531,11 @@ OPTIONS:
         echo_die 1 "Need a destination directory"
     fi
 
-    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" -o -n "DMGR_CMD" ]; then
+    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" ]; then
         set_trap "unset_chroot_operation $DMGR_CHROOT_DIR"
         setup_chroot_operation "$DMGR_CHROOT_DIR"
 
-        _chroot_add_pkg_or_run_exe_n_cmd "$DMGR_CHROOT_DIR"
+        _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
 
         unset_chroot_operation "$DMGR_CHROOT_DIR"
         unset_trap
@@ -569,6 +550,7 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME <CHROOT_DIR>
 "
 
     DMGR_CHROOT_DIR="$1"
+    shift
 
     if [ ! -d "$DMGR_CHROOT_DIR" ]; then
         echo "$DMGR_CHROOT_SYNOPSIS"
@@ -578,7 +560,7 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME <CHROOT_DIR>
     set_trap "unset_chroot_operation $DMGR_CHROOT_DIR"
     setup_chroot_operation "$DMGR_CHROOT_DIR"
 
-    chroot "$DMGR_CHROOT_DIR" /usr/bin/bash
+    chroot "$DMGR_CHROOT_DIR" "$@"
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
     unset_trap

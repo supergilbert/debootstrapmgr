@@ -48,6 +48,8 @@ umount_sys_type_image ()
     kpartx -d "$_IMG_PATH"
 }
 
+DMGR_SIZE_1G=1048576
+
 _handle_pc_flash_img ()
 {
     DMGR_PC_FLASHIMG_SYNOPSIS="\
@@ -60,11 +62,12 @@ OPTIONS:
   -M, --msdos                       Setup an \"MSDOS\" partition table
                                     instead of \"GPT\"
   -s <SRC>, --source=<SRC>          Chroot directory
-  -w <SIZE>, --swap=<SIZE>          Swap size in Giga octet (default 2Go)
+  -S <SIZE>, --image=<SIZE>         Set an image size in Go (normally set to minimal)
+  -w <SIZE>, --swap=<SIZE>          Swap size in Go (default 2Go)
   -h, --help                        Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:EhMs:w:' -l 'destination:,efi,help,msdos,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:EhMs:S:w:' -l 'destination:,efi,help,image-size:,msdos,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -86,6 +89,11 @@ OPTIONS:
             '-s'|'--source')
                 shift
                 DMGR_CHROOT_DIR="$1"
+                shift
+                ;;
+            '-S'|'--image-size')
+                shift
+                DMGR_IMG_SIZE_ARG="$(($1 * $DMGR_SIZE_1G))"
                 shift
                 ;;
             '-M'|'--msdos')
@@ -131,8 +139,6 @@ OPTIONS:
 
 
 
-DMGR_SIZE_1G=1048576
-
 _dmgr_pc_image_part_n_mount_mbr_type ()
 {
     if [ "$1" != "gpt" -a "$1" != "msdos" ]; then
@@ -140,6 +146,14 @@ _dmgr_pc_image_part_n_mount_mbr_type ()
     fi
     DMGR_CHROOT_SIZE="$(du -s ${DMGR_CHROOT_DIR} 2>/dev/null | sed 's/\([[:digit:]]\+\)[[:space:]]\+.*/\1/')"
     DMGR_IMG_SIZE="$((((${DMGR_SWAP_SIZE} * ${DMGR_SIZE_1G}) + ${DMGR_CHROOT_SIZE}) * 110 / 100))"
+    if [ -n "$DMGR_IMG_SIZE_ARG" ]; then
+        if [ "$DMGR_IMG_SIZE_ARG" -lt "$DMGR_IMG_SIZE" ]; then
+            echo_die "Size argument is to small (require at least ${DMGR_IMG_SIZE}ko)"
+        fi
+        DMGR_IMG_SIZE=$DMGR_IMG_SIZE_ARG
+    fi
+
+    echo_notify "Generation image file $DMGR_IMG_PATH of ${DMGR_IMG_SIZE}Ko"
     truncate -s ${DMGR_IMG_SIZE}K "$DMGR_IMG_PATH"
     DMGR_SYS_PART_START="$((1 + ${DMGR_SWAP_SIZE}))"
     if [ "$1" = "msdos" ]; then
@@ -167,9 +181,14 @@ _dmgr_pc_image_part_n_mount_uefi_type ()
     DMGR_TMP_SIZE="$((1 * ${DMGR_SIZE_1G}))"
     DMGR_TMP_SIZE="$(((${DMGR_SWAP_SIZE} * ${DMGR_SIZE_1G}) + ${DMGR_TMP_SIZE}))"
     DMGR_IMG_SIZE="$(((${DMGR_TMP_SIZE} + ${DMGR_SYS_SIZE}) * 110 / 100))"
+    if [ -n "$DMGR_IMG_SIZE_ARG" ]; then
+        if [ "$DMGR_IMG_SIZE_ARG" -lt "$DMGR_IMG_SIZE" ]; then
+            echo_die "Size argument is to small (require at least ${DMGR_IMG_SIZE}ko)"
+        fi
+        DMGR_IMG_SIZE=$DMGR_IMG_SIZE_ARG
+    fi
 
     echo_notify "Generation image file $DMGR_IMG_PATH of ${DMGR_IMG_SIZE}Ko"
-
     truncate -s ${DMGR_IMG_SIZE}K "$DMGR_IMG_PATH"
     DMGR_SYS_PART_START="$((1 + ${DMGR_SWAP_SIZE}))"
     if [ "$1" = "msdos" ]; then
@@ -223,14 +242,6 @@ pc_dir_to_default_img ()
     rsync -ad ${DMGR_CHROOT_DIR}/* ${DMGR_TMP_DIR}
     echo_notify "Files copy done"
 
-    cat <<EOF > ${DMGR_TMP_DIR}/etc/fstab
-# <file system> <mount point> <type> <options>         <dump> <pass>
-proc            /proc         proc   defaults          0      0
-/dev/sda3       /             ext4   errors=remount-ro 0      1
-/dev/sda2       none          swap   sw                0      0
-/dev/sda1       /boot         vfat   errors=remount-ro 0      2
-EOF
-
     # Grub installation
 
     . ${DMGR_CURRENT_DIR}/functions_chroot.sh
@@ -254,6 +265,12 @@ EOF
 
         # Grub with MBR
 
+        cat <<EOF > ${DMGR_TMP_DIR}/etc/fstab
+# <file system> <mount point> <type> <options>         <dump> <pass>
+proc            /proc         proc   defaults          0      0
+/dev/sda1       none          swap   sw                0      0
+/dev/sda2       /             ext4   errors=remount-ro 0      1
+EOF
         chroot $DMGR_TMP_DIR apt update
         chroot $DMGR_TMP_DIR apt -y install grub-pc
 
@@ -271,6 +288,14 @@ EOF
     else
 
         # Grub with EFI
+
+        cat <<EOF > ${DMGR_TMP_DIR}/etc/fstab
+# <file system> <mount point> <type> <options>         <dump> <pass>
+proc            /proc         proc   defaults          0      0
+/dev/sda3       /             ext4   errors=remount-ro 0      1
+/dev/sda2       none          swap   sw                0      0
+/dev/sda1       /boot         vfat   errors=remount-ro 0      2
+EOF
 
         chroot $DMGR_TMP_DIR apt update
         chroot $DMGR_TMP_DIR apt -y install grub-efi-amd64
