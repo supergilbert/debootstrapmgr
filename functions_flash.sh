@@ -141,11 +141,11 @@ OPTIONS:
 
 DMGR_LIVESYS_SYNOPSIS="\
 Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Generate a RPI Image.
+  Generate a live system Image.
 
 OPTIONS:
   -a, --add-package=<PKG>           Add following package to the image
-  -d <DEST>, --destination <DEST>   Destination file
+  -d <DEST>, --destination <DEST>   Destination path
   -e, --exec=<EXE>                  Multiple call of this option will add
   -h, --help                        Display this help
   -s, --source                      Source chroot directory
