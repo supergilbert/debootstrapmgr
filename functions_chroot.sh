@@ -307,7 +307,8 @@ _debootstrap_pc ()
 
     trap_cleanup ()
     {
-        unset_chroot_operation ${DMGR_CHROOT_DIR}
+        unset_chroot_operation $DMGR_CHROOT_DIR
+        rm -rf $DMGR_CHROOT_DIR
     }
 
     set_trap "trap_cleanup"
@@ -465,19 +466,18 @@ EOF
 _chroot_exec ()
 {
     DMGR_CHROOT_EXEC_SYNOPSIS="\
-Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Exec command, script or install package in a chroot preventing service running.
+Usage: chroot-exec $DMGR_CMD_NAME [OPTIONS]
+  Exec script or install package in a chroot preventing service running.
 
 OPTIONS:
   -a, --add-package=<PKG>           Add following package to the image
-  -c <COMMAND>, --command=<COMMAND> Run the specified command
   -d <DEST>, --destination <DEST>   Destination file (tar gzip)
   -e, --exec=<EXE>                  Multiple call of this option will add
                                     executables to run during generation
   -h, --help                        Display this help
 "
 
-    OPTS=$(getopt -n chroot-exec -o 'a:c:d:e:h' -l 'add-package:,command:,destination:,exec:,help' -- "$@")
+    OPTS=$(getopt -n chroot-exec -o 'a:d:e:h' -l 'add-package:,destination:,exec:,help' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"

@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -n "$DEBUG_DMGR" ]; then
+if [ -n "$DEBUG_DMGR" -o -n "$DMGR_DEBUG" ]; then
     set -x
 fi
 
@@ -42,6 +42,8 @@ Flash commands (/!\ caution in what you are flashing)
    mechanism, partition table and fstab)
 
   pc-flashchroot-to-img        Flash a pc chroot to an raw image file
+  pc-flashchroot-to-livesys    Flash a pc chroot to a live system (block device
+                               or file image)
   rpi-flashchroot-to-blk       Flash a rpi chroot to an raw image file
   rpi-flashchroot-to-partclone Flash a rpi chroot to partclones tgz image
   rpi-flashpartclone-to-blk    Flash a partclones tgz image to a block device
@@ -96,14 +98,12 @@ case $DMGR_CMD_NAME in
         _chroot "$@"
         ;;
 
-    "pc-flashchroot-to-img")
+    "pc-flashchroot-to-livesys")
         shift
 
         . ${DMGR_CURRENT_DIR}/functions_flash.sh
 
-        pc_dir_to_default_img "$@"
-
-        echo_notify "PC image done at $DMGR_IMG_PATH"
+        _pc_dir_to_livesys "$@"
         ;;
 
     "rpi-flashchroot-to-partclone")
