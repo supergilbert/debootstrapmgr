@@ -1,0 +1,44 @@
+{
+    "disks": [
+        {
+            "table": "gpt",
+            "parts": [
+                {
+                    "type": "fat32",
+                    "volname": "boot",
+                    "partname": "boot",
+                    "size": "500M"
+                },
+                {
+                    "type": "linux-swap",
+                    "volname": "swap",
+                    "partname": "swap",
+                    "size": "2G"
+                },
+                {
+                    "type": "ext4",
+                    "volname": "sys",
+                    "partname": "sys"
+                }
+            ]
+        }
+    ],
+    "fsarchs": [
+        {
+            "type": "fstab",
+            "disk": 0,
+            "partidx": 2,
+            "parts": [
+                {
+                    "disk": 0,
+                    "partidx": 1
+                },
+                {
+                    "disk": 0,
+                    "partidx": 0,
+                    "mount": "/boot"
+                }
+            ]
+        }
+    ]
+}
