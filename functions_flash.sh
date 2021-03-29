@@ -119,19 +119,17 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Flash a chroot to a block device or a file.
 
 OPTIONS:
-  -a, --add-package=<PKG>       Add following package to the new system
   -d <DST>, --destination=<DST> Destination path
-  -e <EXE>, --exec=<EXE>        Run executable into the new system
   -E, --efi                     Install grub-efi-amd64 instead of grub-pc
   -j <JSON>, --json <JSON>      Specify a json filesystem architecture
-  -M, --msdos                   Setup an \"MSDOS\" partition table
-                                instead of \"GPT\"
+  -g, --gpt                     Setup an \"GPT\" partition table
+                                instead of \"MSDOS\"
   -s <SRC>, --source=<SRC>      Chroot directory
   -w <SIZE>, --swap=<SIZE>      Swap size in Go (default 2Go)
   -h, --help                    Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:Ee:j:hMs:S:w:' -l 'add-package:,destination:,exec:,efi,json:,help,image-size:,msdos,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:Egj:hs:S:w:' -l 'destination:,efi,gpt,json:,help,image-size:,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -140,19 +138,9 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
-            '-a'|'--add-package')
-                shift
-                DMGR_ADD_PKG_LIST="$DMGR_ADD_PKG_LIST $1"
-                shift
-                ;;
             '-d'|'--destination')
                 shift
                 DMGR_DST_PATH="$1"
-                shift
-                ;;
-            '-e'|'--exec')
-                shift
-                DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
                 ;;
             '-E'|'--efi')
@@ -170,9 +158,9 @@ OPTIONS:
                 DMGR_CHROOT_DIR="$1"
                 shift
                 ;;
-            '-M'|'--msdos')
+            '-g'|'--gpt')
                 shift
-                DMGR_MSDOSTABLE="on"
+                DMGR_GPTTABLE="on"
                 echo_notify "Setup an MSDOS partition table"
                 ;;
             '-w'|'--swap')
@@ -209,7 +197,7 @@ OPTIONS:
         # Default 2Go
         DMGR_SWAP_SIZE="2G"
     fi
-    if [ "$DMGR_GRUBEFI" != "on" -a "$DMGR_MSDOSTABLE" != "on" ]; then
+    if [ "$DMGR_GRUBEFI" != "on" -a "$DMGR_GPTTABLE" == "on" ]; then
         echo_die 1 "Cannot install MBR on gpt table"
     fi
 
@@ -222,10 +210,6 @@ OPTIONS:
     if [ -n "$DMGR_JSON_ARG" ]; then
         DMGR_JSON="$DMGR_JSON_ARG"
     fi
-
-    if [ -n "$DMGR_EXE_LIST" ]; then
-        check_exe_list $DMGR_EXE_LIST
-    fi
 }
 
 _handle_dir_to_livesys_args ()
@@ -235,15 +219,13 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Convert a chroot to a live system an flash it to a block device or a file.
 
 OPTIONS:
-  -a, --add-package=<PKG>       Add following package to the new system
   -d <DST>, --destination <DST> Destination path
-  -e <EXE>, --exec=<EXE>        Run executable into the new system
   -h, --help                    Display this help
   -s <SRC>, --source=<SRC>      Source chroot directory
   -p, --add-persistence=PATH    Add persistency on specified path
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hp:s:' -l 'add-package:,destination:,exec:,help,source:,add-persistence:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:hp:s:' -l 'destination:,help,source:,add-persistence:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -252,19 +234,9 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
-            '-a'|'--add-package')
-                shift
-                DMGR_ADD_PKG_LIST="$DMGR_ADD_PKG_LIST $1"
-                shift
-                ;;
             '-d'|'--destination')
                 shift
                 DMGR_DST_PATH="$1"
-                shift
-                ;;
-            '-e'|'--exec')
-                shift
-                DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
                 ;;
             '-h'|'--help')
@@ -301,11 +273,6 @@ OPTIONS:
         echo "$DMGR_LIVESYS_SYNOPSIS"
         echo_die 1 "$DMGR_SRC_PATH chroot source directory does not exist"
     fi
-
-    . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-    if [ -n "$DMGR_EXE_LIST" ]; then
-        check_exe_list $DMGR_EXE_LIST
-    fi
 }
 
 _echo_dir_ko_size ()
@@ -333,10 +300,10 @@ _pc_chroot_flash ()
     _handle_flash_args "$@"
 
     if [ -z "$DMGR_JSON"]; then
-        if [ -n "$DMGR_MSDOSTABLE" ]; then
-            PART_TABLE="msdos"
-        else
+        if [ -n "$DMGR_GPTTABLE" ]; then
             PART_TABLE="gpt"
+        else
+            PART_TABLE="msdos"
         fi
         DMGR_JSON="$(mktemp --suffix=_json)"
         echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
@@ -420,9 +387,6 @@ EOF
 
     rm ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH
 
-    _chroot_add_pkg $DMGR_TMP_DIR $DMGR_ADD_PKG_LIST
-    _run_in_root_system $DMGR_TMP_DIR $DMGR_EXE_LIST
-
     unset_chroot_operation $DMGR_TMP_DIR
 
     $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
@@ -455,17 +419,6 @@ _chroot_to_livesys_dir ()
     echo_notify "Copy done"
 
     . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
-    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" ]; then
-        set_trap "unset_chroot_operation ${2}/tmpdir"
-        setup_chroot_operation ${2}/tmpdir
-
-        _chroot_add_pkg ${2}/tmpdir $DMGR_ADD_PKG_LIST
-        _run_in_root_system ${2}/tmpdir $DMGR_EXE_LIST
-
-        unset_chroot_operation ${2}/tmpdir
-        unset_trap
-    fi
 
     echo_notify "Generating live-boot initrd and filesquahfs ..."
 
@@ -580,10 +533,10 @@ _rpi_chroot_flash ()
     _handle_flash_args "$@"
 
     if [ -z "$DMGR_JSON"]; then
-        if [ -n "$DMGR_MSDOSTABLE" ]; then
-            PART_TABLE="msdos"
-        else
+        if [ -n "$DMGR_GPTTABLE" ]; then
             PART_TABLE="gpt"
+        else
+            PART_TABLE="msdos"
         fi
         DMGR_JSON="$(mktemp --suffix=_json)"
         echo "$DEFAULT_FSTAB_RPI_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
@@ -624,13 +577,6 @@ _rpi_chroot_flash ()
     echo_notify "Files copy done"
 
     echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
-
-    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" ]; then
-        setup_chroot_operation $DMGR_TMP_DIR
-        _chroot_add_pkg $DMGR_TMP_DIR $DMGR_ADD_PKG_LIST
-        _run_in_root_system $DMGR_TMP_DIR $DMGR_EXE_LIST
-        unset_chroot_operation $DMGR_TMP_DIR
-    fi
 
     $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
 
