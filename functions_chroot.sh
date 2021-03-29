@@ -124,8 +124,7 @@ OPTIONS:
   -C, --apt-cacher=<APT_CACHE_ADDR> Use an apt cache proxy
   -d <DEST>, --destination <DEST>   Destination file (tar gzip)
   -D, --distribution=<DIST>         Set the distribution
-  -e, --exec=<EXE>                  Multiple call of this option will add
-                                    executables to run during generation
+  -e <EXE>, --exec=<EXE>            Run executable into the new system
   -n, --no-default-pkg              Do not install default package (packages
                                     needed for boot)
   -H, --hostname                    Set the default hostname (otherwise
@@ -443,11 +442,10 @@ Usage: chroot-exec $DMGR_CMD_NAME [OPTIONS]
   Exec script or install package in a chroot preventing service running.
 
 OPTIONS:
-  -a, --add-package=<PKG>           Add following package to the image
-  -d <DEST>, --destination <DEST>   Destination file (tar gzip)
-  -e, --exec=<EXE>                  Multiple call of this option will add
-                                    executables to run during generation
-  -h, --help                        Display this help
+  -a, --add-package=<PKG>         Add following package
+  -d <DEST>, --destination <DEST> Destination file (tar gzip)
+  -e, --exec=<EXE>                Run executable
+  -h, --help                      Display this help
 "
 
     OPTS=$(getopt -n chroot-exec -o 'a:d:e:h' -l 'add-package:,destination:,exec:,help' -- "$@")

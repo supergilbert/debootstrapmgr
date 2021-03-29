@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 import tempfile
+import time
 
 SYNOPSIS="""\
 Usage: diskhdr <JSONFILE|help> [COMMAND] [ARG]...
@@ -221,11 +222,21 @@ def gen_parted_create_cmd(disk_repr, path_dst):
             raise DKHRException("gen_parted_create_cmd: infinite partition not at end will coming")
     return parted_cmd
 
+def wait_path(path):
+    count=20
+    while count > 0:
+        if os.path.exists(path):
+            return
+        count -= 1
+        time.sleep(.5)
+    raise DKHRException("wait_path: timeout on %s" % path)
+
 def gen_mkfs_cmd(part_list, blk_prefix):
     mkfs_cmd_list = []
     part_num = 1
     for part in part_list:
         part_path = blk_prefix + "%d" % part_num
+        wait_path(part_path)
         if part["type"] == "fat32":
             mkfs_cmd_list.append("mkfs.fat -F32 %s > /dev/null 2>&1" % part_path)
         elif part["type"] == "ext4":
@@ -299,6 +310,8 @@ def create_mountpoints(fsarch_repr, disks_list, blk_prefix_list):
 
 def mount_fsarch(fsarch_repr, blk_prefix_list, mountpoint):
     blkpath = blk_prefix_list[fsarch_repr["disk"]] + "%d" % (fsarch_repr["partidx"] + 1)
+    print("mount {blk} {mount}".format(blk=blkpath,
+                                       mount=mountpoint))
     os.system("mount {blk} {mount}".format(blk=blkpath,
                                            mount=mountpoint))
     
@@ -346,17 +359,20 @@ def dump_fstab(fsarch_repr, disks_list, blk_prefix_list):
 
 command = cmd_n_args[0]
 if command == "format":
-    if check_dstpath(cmd_n_args[1]) == DST_FILE:
-        using_kpartx = True
     if len(cmd_n_args) > 2:
         log_out(SYNOPSIS)
         die(1, "Wrong number of arguments (multiple device not yet supported)")
     dst_path = cmd_n_args[1]
+    if check_dstpath(dst_path) == DST_FILE:
+        using_kpartx = True
+    else:
+        dst_path = os.path.realpath(dst_path)
     format_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
+    format_cmd += " && partprobe %s" % dst_path
+    log_msg(format_cmd)
+    if os.system(format_cmd) != 0:
+        die(1, "Format fail")
     if using_kpartx:
-        log_msg(format_cmd)
-        if os.system(format_cmd) != 0:
-            die(1, "Format fail")
         loop_num = kpartx_file(dst_path)
         try:
             blk_prefix = "/dev/mapper/loop%dp" % loop_num
@@ -371,12 +387,13 @@ if command == "format":
         finally:
             os.system("kpartx -d %s" % dst_path)
     else:
-        format_cmd += " && partprobe %s" % dst_path
-        format_cmd += " && " + gen_mkfs_cmd(disks_list[0]["parts"], dst_path)
-        log_msg("Running:\n%s" % format_cmd)
-        if os.system(format_cmd) != 0:
-            die(1, "Format fail")
-        create_mountpoints(fsarch_repr_list[0], disks_list, dst_path)
+        mkfs_cmd = gen_mkfs_cmd(disks_list[0]["parts"], dst_path)
+        # get a better solution (part probe check etc)
+        mkfs_cmd = "sleep 1 && " + mkfs_cmd
+        # log_msg("Running:\n%s" % mkfs_cmd)
+        if os.system(mkfs_cmd) != 0:
+            die(1, "Filesystems creation fail")
+        create_mountpoints(fsarch_repr_list[0], disks_list, [dst_path])
 else:
     if command == "swapsize":
         if len(cmd_n_args) != 2:
@@ -422,7 +439,7 @@ else:
         if blk_prefix:
             using_kpartx
         else:
-            blk_prefix = dst_path
+            blk_prefix = os.path.realpath(dst_path)
         if len(cmd_n_args) != 4:
             if using_kpartx:
                 os.system("kpartx -d %s" % dst_path)
@@ -448,6 +465,6 @@ else:
             os.system("kpartx -d %s > /dev/null 2>&1" % dst_path)
             using_kpartx
         else:
-            dump_fstab(fsarch_repr_list[fsarch_num], disks_list, [dst_path])
+            dump_fstab(fsarch_repr_list[fsarch_num], disks_list, [os.path.realpath(dst_path)])
     else:
         die(1, "Unknown command %s" % command)

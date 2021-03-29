@@ -108,27 +108,7 @@ DEFAULT_FSTAB_RPI_JSON="\
 }
 "
 
-umount_bootsys_type_image ()
-{
-    _IMG_PATH=$1
-    _MOUNT_PATH=$2
-
-    umount ${_MOUNT_PATH}/boot "$_MOUNT_PATH"
-    kpartx -d "$_IMG_PATH"
-}
-
-DMGR_FLASHER_SYNOPSIS="Usage: $DMGR_NAME $DMGR_CMD_NAME <SRC> <DST>"
-
 # PC Part
-
-umount_sys_type_image ()
-{
-    _IMG_PATH=$1
-    _MOUNT_PATH=$2
-
-    umount "$_MOUNT_PATH"
-    kpartx -d "$_IMG_PATH"
-}
 
 DMGR_SIZE_1G=1048576
 
@@ -136,21 +116,22 @@ _handle_flash_args ()
 {
     DMGR_PC_FLASHIMG_SYNOPSIS="\
 Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Generate a RPI Image.
+  Flash a chroot to a block device or a file.
 
 OPTIONS:
-  -d <DEST>, --destination=<DEST> Destination path
-  -E, --efi                       Install grub-efi-amd64 instead of grub-pc
-  -j <JSON>, --json <JSON>        Specify a json filesystem architecture
-  -M, --msdos                     Setup an \"MSDOS\" partition table
-                                  instead of \"GPT\"
-  -s <SRC>, --source=<SRC>        Chroot directory
-  -S <SIZE>, --image=<SIZE>       Set an image size in Go (normally set to minimal)
-  -w <SIZE>, --swap=<SIZE>        Swap size in Go (default 2Go)
-  -h, --help                      Display this help
+  -a, --add-package=<PKG>       Add following package to the new system
+  -d <DST>, --destination=<DST> Destination path
+  -e <EXE>, --exec=<EXE>        Run executable into the new system
+  -E, --efi                     Install grub-efi-amd64 instead of grub-pc
+  -j <JSON>, --json <JSON>      Specify a json filesystem architecture
+  -M, --msdos                   Setup an \"MSDOS\" partition table
+                                instead of \"GPT\"
+  -s <SRC>, --source=<SRC>      Chroot directory
+  -w <SIZE>, --swap=<SIZE>      Swap size in Go (default 2Go)
+  -h, --help                    Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:Ej:hMs:S:w:' -l 'destination:,efi,json:,help,image-size:,msdos,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:Ee:j:hMs:S:w:' -l 'add-package:,destination:,exec:,efi,json:,help,image-size:,msdos,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -159,9 +140,19 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
+            '-a'|'--add-package')
+                shift
+                DMGR_ADD_PKG_LIST="$DMGR_ADD_PKG_LIST $1"
+                shift
+                ;;
             '-d'|'--destination')
                 shift
                 DMGR_DST_PATH="$1"
+                shift
+                ;;
+            '-e'|'--exec')
+                shift
+                DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
                 ;;
             '-E'|'--efi')
@@ -177,11 +168,6 @@ OPTIONS:
             '-s'|'--source')
                 shift
                 DMGR_CHROOT_DIR="$1"
-                shift
-                ;;
-            '-S'|'--image-size')
-                shift
-                DMGR_IMG_SIZE_ARG="$(($1 * $DMGR_SIZE_1G))"
                 shift
                 ;;
             '-M'|'--msdos')
@@ -221,7 +207,7 @@ OPTIONS:
 
     if [ -z "$DMGR_SWAP_SIZE" ]; then
         # Default 2Go
-        DMGR_SWAP_SIZE="2"
+        DMGR_SWAP_SIZE="2G"
     fi
     if [ "$DMGR_GRUBEFI" != "on" -a "$DMGR_MSDOSTABLE" != "on" ]; then
         echo_die 1 "Cannot install MBR on gpt table"
@@ -236,24 +222,28 @@ OPTIONS:
     if [ -n "$DMGR_JSON_ARG" ]; then
         DMGR_JSON="$DMGR_JSON_ARG"
     fi
+
+    if [ -n "$DMGR_EXE_LIST" ]; then
+        check_exe_list $DMGR_EXE_LIST
+    fi
 }
 
 _handle_dir_to_livesys_args ()
 {
     DMGR_LIVESYS_SYNOPSIS="\
 Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Generate a live system Image.
+  Convert a chroot to a live system an flash it to a block device or a file.
 
 OPTIONS:
-  -a, --add-package=<PKG>       Add following package to the image
+  -a, --add-package=<PKG>       Add following package to the new system
   -d <DST>, --destination <DST> Destination path
-  -e, --exec=<EXE>              Multiple call of this option will add
+  -e <EXE>, --exec=<EXE>        Run executable into the new system
   -h, --help                    Display this help
   -s <SRC>, --source=<SRC>      Source chroot directory
   -p, --add-persistence=PATH    Add persistency on specified path
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hp:s:' -l 'add-package:,destination:,executable:,help,source:,add-persistence:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hp:s:' -l 'add-package:,destination:,exec:,help,source:,add-persistence:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -269,10 +259,10 @@ OPTIONS:
                 ;;
             '-d'|'--destination')
                 shift
-                DMGR_DEST_PATH="$1"
+                DMGR_DST_PATH="$1"
                 shift
                 ;;
-            '-e'|'--executable')
+            '-e'|'--exec')
                 shift
                 DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
@@ -302,7 +292,7 @@ OPTIONS:
         esac
     done
 
-    if [ -z "$DMGR_DEST_PATH" ]; then
+    if [ -z "$DMGR_DST_PATH" ]; then
         echo "$DMGR_LIVESYS_SYNOPSIS"
         echo_die 1 "Destination is mandatory"
     fi
@@ -349,7 +339,7 @@ _pc_chroot_flash ()
             PART_TABLE="gpt"
         fi
         DMGR_JSON="$(mktemp --suffix=_json)"
-        echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}G/g" > $DMGR_JSON
+        echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
     fi
 
     if [ ! -e "$DMGR_DST_PATH" ]; then
@@ -394,7 +384,6 @@ _pc_chroot_flash ()
 
     echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
 
-
     _dmgr_install_tmp_grub_cfg ()
     {
         GRUB_CFG_PATH=${DMGR_TMP_DIR}/etc/default/grub.d/dmgr.cfg
@@ -431,6 +420,9 @@ EOF
 
     rm ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH
 
+    _chroot_add_pkg $DMGR_TMP_DIR $DMGR_ADD_PKG_LIST
+    _run_in_root_system $DMGR_TMP_DIR $DMGR_EXE_LIST
+
     unset_chroot_operation $DMGR_TMP_DIR
 
     $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
@@ -455,7 +447,7 @@ _chroot_to_livesys_dir ()
         echo_die 1 "Need a directories as arguments"
     fi
 
-    echo_notify "Generating live directory in $DMGR_DEST_PATH"
+    echo_notify "Generating live directory in $DMGR_DST_PATH"
 
     echo_notify "Copying chroot $1 to $2 build directory ..."
     mkdir -p ${2}/tmpdir
@@ -524,19 +516,20 @@ _handle_flashlive_block_or_file ()
     DMGR_JSON="$(mktemp --suffix=_json)"
     echo $DEFAULT_LIVE_JSON > $DMGR_JSON
 
-    if [ -f "$DMGR_DEST_PATH" ]; then
-        if [ ! -b "$DMGR_DEST_PATH" ]; then
-            echo_die 1 "$DMGR_DEST_PATH already exist"
+    if [ -e "$DMGR_DST_PATH" ]; then
+        DMGR_DST_PATH="$(realpath $DMGR_DST_PATH)"
+        if [ ! -b "$DMGR_DST_PATH" ]; then
+            echo_die 1 "$DMGR_DST_PATH already exist"
         fi
         echo_notify "Flashing block device"
-        set_trap "$diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
+        set_trap "$diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
     else
         echo_notify "Flashing image file"
         DMGR_LIVEDIR_SIZE="$(_echo_dir_ko_size ${DMGR_TMP_DIR}/live)"
         # Add 100000K(~100M) for grub
         DMGR_LIVEIMG_SIZE="$((($DMGR_LIVEDIR_SIZE * 110 / 100) + 100000))"
-        truncate -s ${DMGR_LIVEIMG_SIZE}K $DMGR_DEST_PATH
-        set_trap "$diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_DEST_PATH $DMGR_TMP_DIR $DMGR_JSON"
+        truncate -s ${DMGR_LIVEIMG_SIZE}K $DMGR_DST_PATH
+        set_trap "$diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON $DMGR_DST_PATH"
     fi
 }
 
@@ -555,8 +548,8 @@ _pc_chroot_flashlive ()
 
     _handle_flashlive_block_or_file
 
-    $diskhdr_cmd $DMGR_JSON format $DMGR_DEST_PATH
-    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt
+    $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
+    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
     rsync -ad ${DMGR_TMP_DIR}/live/* ${DMGR_TMP_DIR}/mnt
 
@@ -564,7 +557,7 @@ _pc_chroot_flashlive ()
     mv ${DMGR_TMP_DIR}/mnt/vmlinuz* ${DMGR_TMP_DIR}/mnt/vmlinuz
     mv ${DMGR_TMP_DIR}/mnt/initrd.img* ${DMGR_TMP_DIR}/mnt/initrd.img
 
-    grub-install --target=i386-pc --boot-directory=${DMGR_TMP_DIR}/mnt $DMGR_DEST_PATH
+    grub-install --target=i386-pc --boot-directory=${DMGR_TMP_DIR}/mnt $DMGR_DST_PATH
     cat <<EOF > ${DMGR_TMP_DIR}/mnt/grub/grub.cfg
 insmod ext2
 set root='hd0,msdos1'
@@ -574,7 +567,7 @@ boot
 EOF
     # End of boot setup
 
-    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt
+    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
     rm -rf $DMGR_TMP_DIR $DMGR_JSON
     unset_trap
@@ -593,12 +586,12 @@ _rpi_chroot_flash ()
             PART_TABLE="gpt"
         fi
         DMGR_JSON="$(mktemp --suffix=_json)"
-        echo "$DEFAULT_FSTAB_RPI_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}G/g" > $DMGR_JSON
+        echo "$DEFAULT_FSTAB_RPI_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
     fi
 
     if [ ! -e "$DMGR_DST_PATH" ]; then
         echo_notify "$DMGR_DST_PATH not found generating image file"
-        DMGR_IMAGE_TYPE="ON"
+        # DMGR_IMAGE_TYPE="ON"
         DMGR_DISK_SIZE="$(($(_get_sys_min_size ${DMGR_CHROOT_DIR}) + $($diskhdr_cmd $DMGR_JSON minsize 0)))"
         DMGR_DISK_SIZE="$(($DMGR_DISK_SIZE * 110 / 100))"
         truncate -s ${DMGR_DISK_SIZE}M $DMGR_DST_PATH
@@ -620,17 +613,24 @@ _rpi_chroot_flash ()
     DMGR_FSTAB_STR="$($diskhdr_cmd $DMGR_JSON fstab 0 $DMGR_DST_PATH)"
     $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
 
-    if [ -n "$DMGR_IMAGE_TYPE" ]; then
-        DMGR_BLKDEV=$(losetup --raw | grep $DMGR_DST_PATH | cut -f 1 -d' ')
-    else
-        DMGR_BLKDEV=$DMGR_DST_PATH
-    fi
+    # if [ -n "$DMGR_IMAGE_TYPE" ]; then
+    #     DMGR_BLKDEV=$(losetup --raw | grep $DMGR_DST_PATH | cut -f 1 -d' ')
+    # else
+    #     DMGR_BLKDEV=$DMGR_DST_PATH
+    # fi
 
     echo_notify "Copying files ..."
     rsync -ad ${DMGR_CHROOT_DIR}/* ${DMGR_TMP_DIR}
     echo_notify "Files copy done"
 
     echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
+
+    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" ]; then
+        setup_chroot_operation $DMGR_TMP_DIR
+        _chroot_add_pkg $DMGR_TMP_DIR $DMGR_ADD_PKG_LIST
+        _run_in_root_system $DMGR_TMP_DIR $DMGR_EXE_LIST
+        unset_chroot_operation $DMGR_TMP_DIR
+    fi
 
     $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
 
@@ -649,7 +649,6 @@ _rpi_chroot_flashlive ()
 
     DMGR_TYPE="RPI"
 
-
     echo_notify "Generating live system"
     DMGR_TMP_DIR="$(mktemp -d --suffix=_dmgr_livesys_dir)"
     mkdir ${DMGR_TMP_DIR}/live ${DMGR_TMP_DIR}/mnt
@@ -661,10 +660,10 @@ _rpi_chroot_flashlive ()
 
     _handle_flashlive_block_or_file
 
-    $diskhdr_cmd $DMGR_JSON format $DMGR_DEST_PATH
-    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt
+    $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
+    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
-    rsync -ad ${DMGR_TMP_DIR}/live/* ${DMGR_TMP_DIR}/mnt
+    rsync --modify-window=1 --update --recursive ${DMGR_TMP_DIR}/live/* ${DMGR_TMP_DIR}/mnt
 
     # Setup Boot
     mv ${DMGR_TMP_DIR}/mnt/initrd*v7+.img ${DMGR_TMP_DIR}/mnt/initrd7.img
@@ -687,7 +686,7 @@ live-media=/dev/mmcblk0p1 rootwait cma=512M boot=live components persistence
 EOF
     # End of boot setup
 
-    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DEST_PATH ${DMGR_TMP_DIR}/mnt
+    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
     rm -rf $DMGR_TMP_DIR $DMGR_JSON
     unset_trap
