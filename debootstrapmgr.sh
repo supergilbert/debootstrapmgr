@@ -60,13 +60,13 @@ case $DMGR_CMD_NAME in
     "pc-debootstrap")
         shift
         _debootstrap_pc "$@"
-        echo_notify "PC chroot generated at $DMGR_CHROOT_DIR"
+        echo_notify "Chroot generated"
         ;;
 
     "rpi-debootstrap")
         shift
         _debootstrap_rpi "$@"
-        echo_notify "RPI chroot generated at $DMGR_CHROOT_DIR"
+        echo_notify "Chroot generated"
         ;;
 
     "chroot-exec")
@@ -83,21 +83,25 @@ case $DMGR_CMD_NAME in
     "pc-chroot-flash")
         shift
         _pc_chroot_flash "$@"
+        echo_notify "Flash done"
         ;;
 
     "pc-chroot-flash-live")
         shift
         _pc_chroot_flashlive "$@"
+        echo_notify "Flash done"
         ;;
 
     "rpi-chroot-flash")
         shift
         _rpi_chroot_flash "$@"
+        echo_notify "Flash done"
         ;;
 
     "rpi-chroot-flash-live")
         shift
         _rpi_chroot_flashlive "$@"
+        echo_notify "Flash done"
         ;;
 
     "help")

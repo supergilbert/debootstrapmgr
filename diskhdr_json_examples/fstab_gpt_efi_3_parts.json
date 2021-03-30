@@ -23,7 +23,7 @@
             ]
         }
     ],
-    "fsarchs": [
+    "systems": [
         {
             "type": "fstab",
             "disk": 0,

@@ -135,14 +135,14 @@ def check_disks_repr_list(disks_list):
 
     dkhr_check_disk_repr(disks_list[0])
 
-def check_fsarchs_repr_list(fsarchs_list, disks_list):
+def check_systems_repr_list(systems_list, disks_list):
     check_disks_repr_list(disks_list)
 
-    if len(fsarchs_list) == 0:
-        raise DKHRException("check fsarchs: No system found")
+    if len(systems_list) == 0:
+        raise DKHRException("check systems: No system found")
 
-    if len(fsarchs_list) != 1:
-        raise DKHRException("check fsarchs: Only one system is currently available")
+    if len(systems_list) != 1:
+        raise DKHRException("check systems: Only one system is currently available")
 
 try:
     diskhdr_obj = json.loads(open(sys.argv[1], "r").read())
@@ -156,11 +156,11 @@ except Exception as e:
 if not "disks" in diskhdr_obj.keys():
     die(1, "the key 'disks' missing")
 
-if not "fsarchs" in diskhdr_obj.keys():
-    die(1, "the key 'fsarchs' missing")
+if not "systems" in diskhdr_obj.keys():
+    die(1, "the key 'systems' missing")
 
 try:
-    check_fsarchs_repr_list(diskhdr_obj["fsarchs"], diskhdr_obj["disks"])
+    check_systems_repr_list(diskhdr_obj["systems"], diskhdr_obj["disks"])
 except DKHRException as e:
     die(1, "Check error\n%s" % e)
 
@@ -287,20 +287,20 @@ def set_kpartx_if_needed(dst_path):
     return None
 
 cmd_n_args = sys.argv[2:]
-fsarch_repr_list = diskhdr_obj["fsarchs"]
+system_repr_list = diskhdr_obj["systems"]
 disks_list = diskhdr_obj["disks"]
 
 using_kpartx = False
 
-def create_mountpoints(fsarch_repr, disks_list, blk_prefix_list):
+def create_mountpoints(system_repr, disks_list, blk_prefix_list):
     if len(disks_list) != len(blk_prefix_list):
         raise DKHRException("create_mountpoints: disk list and block list number mismatch")
-    if "parts" in fsarch_repr.keys():
+    if "parts" in system_repr.keys():
         root_mountpoint = tempfile.mkdtemp(suffix="_diskhdr_mountpoints_gen")
-        blkpath = blk_prefix_list[fsarch_repr["disk"]] + "%d" % (fsarch_repr["partidx"] + 1)
+        blkpath = blk_prefix_list[system_repr["disk"]] + "%d" % (system_repr["partidx"] + 1)
         os.system("mount {blk} {mount}".format(blk=blkpath,
                                                mount=root_mountpoint))
-        for part in fsarch_repr["parts"]:
+        for part in system_repr["parts"]:
             if "mount" in part.keys():
                 mountpoint = root_mountpoint + part["mount"]
                 os.makedirs(mountpoint)
@@ -308,23 +308,23 @@ def create_mountpoints(fsarch_repr, disks_list, blk_prefix_list):
         os.system("umount %s" % root_mountpoint)
         os.system("rmdir %s" % root_mountpoint)
 
-def mount_fsarch(fsarch_repr, blk_prefix_list, mountpoint):
-    blkpath = blk_prefix_list[fsarch_repr["disk"]] + "%d" % (fsarch_repr["partidx"] + 1)
+def mount_system(system_repr, blk_prefix_list, mountpoint):
+    blkpath = blk_prefix_list[system_repr["disk"]] + "%d" % (system_repr["partidx"] + 1)
     print("mount {blk} {mount}".format(blk=blkpath,
                                        mount=mountpoint))
     os.system("mount {blk} {mount}".format(blk=blkpath,
                                            mount=mountpoint))
     
-    if "parts" in fsarch_repr.keys():
-        for part in fsarch_repr["parts"]:
+    if "parts" in system_repr.keys():
+        for part in system_repr["parts"]:
             if "mount" in part.keys():
                 blkpath = blk_prefix_list[part["disk"]] + "%d" % (part["partidx"] + 1)
                 os.system("mount {blk} {mount}".format(blk=blkpath,
                                                        mount=mountpoint + part["mount"]))
 
-def umount_fsarch(fsarch_repr, mountpoint):
-    if "parts" in fsarch_repr.keys():
-        for part in fsarch_repr["parts"]:
+def umount_system(system_repr, mountpoint):
+    if "parts" in system_repr.keys():
+        for part in system_repr["parts"]:
             if "mount" in part.keys():
                 os.system("umount %s" % mountpoint + part["mount"])
     os.system("umount %s" % mountpoint)
@@ -335,14 +335,14 @@ def get_fsuuid(blk_prefix_list, disk_idx, part_idx):
                                         shell=True)
     return lsblk_ret.decode("ascii")[:-1]
 
-def dump_fstab(fsarch_repr, disks_list, blk_prefix_list):
+def dump_fstab(system_repr, disks_list, blk_prefix_list):
     fstab_str_list = ["proc /proc proc defaults 0 0"]
-    uuid_str = get_fsuuid(blk_prefix_list, fsarch_repr["disk"], fsarch_repr["partidx"])
-    fstype_str = disks_list[fsarch_repr["disk"]]["parts"][fsarch_repr["partidx"]]["type"]
+    uuid_str = get_fsuuid(blk_prefix_list, system_repr["disk"], system_repr["partidx"])
+    fstype_str = disks_list[system_repr["disk"]]["parts"][system_repr["partidx"]]["type"]
     fstab_str_list.append("UUID={uuid} / {fstype} errors=remount-ro 0 1".format(uuid=uuid_str,
                                                                                 fstype=fstype_str))
-    if "parts" in fsarch_repr.keys():
-        for part in fsarch_repr["parts"]:
+    if "parts" in system_repr.keys():
+        for part in system_repr["parts"]:
             disk = disks_list[part["disk"]]
             if "mount" in part.keys():
                 uuid_str = get_fsuuid(blk_prefix_list, part["disk"], part["partidx"])
@@ -381,7 +381,7 @@ if command == "format":
             if os.system(mkfs_cmd) != 0:
                 os.system("kpartx -d %s" % dst_path)
                 die(1, "%s: mkfs fail" % command)
-            create_mountpoints(fsarch_repr_list[0], disks_list, [blk_prefix])
+            create_mountpoints(system_repr_list[0], disks_list, [blk_prefix])
         except DKHRException as e:
             log_err("Unable to create filesystem\n%s" % e)
         finally:
@@ -393,7 +393,7 @@ if command == "format":
         # log_msg("Running:\n%s" % mkfs_cmd)
         if os.system(mkfs_cmd) != 0:
             die(1, "Filesystems creation fail")
-        create_mountpoints(fsarch_repr_list[0], disks_list, [dst_path])
+        create_mountpoints(system_repr_list[0], disks_list, [dst_path])
 else:
     if command == "swapsize":
         if len(cmd_n_args) != 2:
@@ -419,9 +419,9 @@ else:
         if len(cmd_n_args) != 2:
             log_out(SYNOPSIS)
             die(1, "Wrong number of arguments")
-        fsarch_idx = int(cmd_n_args[1])
+        system_idx = int(cmd_n_args[1])
         mounts = []
-        for part in fsarch_repr_list[fsarch_idx]["parts"]:
+        for part in system_repr_list[system_idx]["parts"]:
             if "mount" in part.keys():
                 mounts.append(part["mount"])
         log_out(" ".join(mounts))
@@ -430,7 +430,7 @@ else:
         log_out(SYNOPSIS)
         die(1, "%s need more arguments" % command)
 
-    fsarch_num = int(cmd_n_args[1])
+    system_num = int(cmd_n_args[1])
 
     dst_path = cmd_n_args[2]
 
@@ -446,13 +446,13 @@ else:
             log_out(SYNOPSIS)
             die(1, "Wrong number of arguments")
         mount_point = cmd_n_args[3]
-        mount_fsarch(fsarch_repr_list[fsarch_num], [blk_prefix], mount_point)
+        mount_system(system_repr_list[system_num], [blk_prefix], mount_point)
     elif command == "umount":
         if len(cmd_n_args) != 4:
             log_out(SYNOPSIS)
             die(1, "Wrong number of arguments")
         mount_point = cmd_n_args[3]
-        umount_fsarch(fsarch_repr_list[fsarch_num], mount_point)
+        umount_system(system_repr_list[system_num], mount_point)
         if check_dstpath(dst_path) == DST_FILE:
             os.system("kpartx -dv %s" % dst_path)
     elif command == "fstab":
@@ -461,10 +461,10 @@ else:
             die(1, "Wrong number of arguments")
         blk_prefix = set_kpartx_if_needed(dst_path)
         if blk_prefix:
-            dump_fstab(fsarch_repr_list[fsarch_num], disks_list, [blk_prefix])
+            dump_fstab(system_repr_list[system_num], disks_list, [blk_prefix])
             os.system("kpartx -d %s > /dev/null 2>&1" % dst_path)
             using_kpartx
         else:
-            dump_fstab(fsarch_repr_list[fsarch_num], disks_list, [os.path.realpath(dst_path)])
+            dump_fstab(system_repr_list[system_num], disks_list, [os.path.realpath(dst_path)])
     else:
         die(1, "Unknown command %s" % command)

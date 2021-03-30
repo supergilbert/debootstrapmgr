@@ -14,7 +14,7 @@ DEFAULT_LIVE_JSON="\
             ]
         }
     ],
-    \"fsarchs\": [
+    \"systems\": [
         {
             \"type\": \"live-fstab\",
             \"disk\": 0,
@@ -50,7 +50,7 @@ DEFAULT_FSTAB_JSON="\
             ]
         }
     ],
-    \"fsarchs\": [
+    \"systems\": [
         {
             \"type\": \"fstab\",
             \"disk\": 0,
@@ -91,7 +91,7 @@ DEFAULT_FSTAB_RPI_JSON="\
             ]
         }
     ],
-    \"fsarchs\": [
+    \"systems\": [
         {
             \"type\": \"fstab\",
             \"disk\": 0,
@@ -197,7 +197,7 @@ OPTIONS:
         # Default 2Go
         DMGR_SWAP_SIZE="2G"
     fi
-    if [ "$DMGR_GRUBEFI" != "on" -a "$DMGR_GPTTABLE" == "on" ]; then
+    if [ "$DMGR_GRUBEFI" != "on" -a "$DMGR_GPTTABLE" = "on" ]; then
         echo_die 1 "Cannot install MBR on gpt table"
     fi
 

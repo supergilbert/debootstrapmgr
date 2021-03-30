@@ -120,22 +120,23 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Generate a RPI Image.
 
 OPTIONS:
-  -a, --add-package=<PKG>           Add following package to the image
-  -C, --apt-cacher=<APT_CACHE_ADDR> Use an apt cache proxy
-  -d <DEST>, --destination <DEST>   Destination file (tar gzip)
-  -D, --distribution=<DIST>         Set the distribution
-  -e <EXE>, --exec=<EXE>            Run executable into the new system
-  -n, --no-default-pkg              Do not install default package (packages
-                                    needed for boot)
-  -H, --hostname                    Set the default hostname (otherwise
-                                    hostname is chroot debi)
-  -p, --password                    See the default root password (otherwise
-                                    root password is root)
-  -s, --sysv                        Use sysv instead of systemd
-  -h, --help                        Display this help
+  -a, --add-package=<PKG>            Add following package to the image
+  -C, --apt-cacher=<APT_CACHE_ADDR>  Use an temporary apt cache proxy
+  -d <DEST>, --destination <DEST>    Destination file (tar gzip)
+  -D, --distribution=<DIST>          Set the distribution
+  -e <EXE>, --exec=<EXE>             Run executable into the new system
+  -n, --no-default-pkg               Do not install default package (packages
+                                     needed for boot)
+  -H, --hostname                     Set the default hostname (otherwise
+                                     hostname is chroot debi)
+  -p, --password                     See the default root password (otherwise
+                                     root password is root)
+  -r <REPO_ADDR>, --repo <REPO_ADDR> Modify default repo addr (Unused on rpi generation)
+  -s, --sysv                         Use sysv instead of systemd
+  -h, --help                         Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,sysv' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:r:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,repo:,sysv' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -185,6 +186,11 @@ OPTIONS:
             '-p'|'--password')
                 shift
                 DMGR_ROOT_PASSWORD="$1"
+                shift
+                ;;
+            '-r'|'--repo')
+                shift
+                DMGR_REPO_ADDR="$1"
                 shift
                 ;;
             '-s'|'--sysv')
@@ -257,12 +263,14 @@ _debootstrap_pc ()
 
     echo_notify "Destination: $DMGR_DST"
 
-    DMGR_DEBIAN_URL="ftp.debian.org/debian"
+    if [ -z "$DMGR_REPO_ADDR" ]; then
+        DMGR_REPO_ADDR="ftp.debian.org/debian"
+    fi
 
     if [ -n "$DMGR_APT_CACHER" ]; then
-        DMGR_DEBOOTSTRAP_URL="http://${DMGR_APT_CACHER}/${DMGR_DEBIAN_URL}"
+        DMGR_DEBOOTSTRAP_URL="http://${DMGR_APT_CACHER}/${DMGR_REPO_ADDR}"
     else
-        DMGR_DEBOOTSTRAP_URL="http://${DMGR_DEBIAN_URL}"
+        DMGR_DEBOOTSTRAP_URL="http://${DMGR_REPO_ADDR}"
     fi
 
     echo_notify "Generating a bootstrap from ${DMGR_DEBOOTSTRAP_URL}."
@@ -298,16 +306,6 @@ LANG="C"
 LANGUAGE="C"
 EOF
 
-    if [ -n "$DMGR_APT_CACHER" ]; then
-        cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_APT_CACHER}/${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
-EOF
-    else
-        cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
-EOF
-    fi
-
     if [ -z "$DMGR_NO_DEFAULT_PKG" ]; then
         chroot "$DMGR_CHROOT_DIR" /usr/bin/apt-get update
         chroot "$DMGR_CHROOT_DIR" /usr/bin/apt-get --allow-unauthenticated -y upgrade
@@ -325,7 +323,7 @@ EOF
 
     if [ -n "$DMGR_APT_CACHER" ]; then
         cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
+deb http://${DMGR_REPO_ADDR} $DMGR_DIST main contrib non-free
 EOF
     fi
 }
