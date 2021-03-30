@@ -28,6 +28,7 @@ jobs:
       # Runs a single command using the runners shell
       - name: Test build debian package
         run:
+          apt -y install devscripts
           mk-build-deps -i
           apt -f install
           debuild -b -us -uc
