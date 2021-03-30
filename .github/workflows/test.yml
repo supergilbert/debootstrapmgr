@@ -25,10 +25,11 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
+      - name: Install devscripts
+        run: apt -y install devscripts
+
+      - name: Install build dependencies
+        run: mk-build-deps -i
+
       - name: Test build debian package
-        run:
-          apt -y install devscripts
-          mk-build-deps -i
-          apt -f install
-          debuild -b -us -uc
+        run: debuild -b -us -uc
