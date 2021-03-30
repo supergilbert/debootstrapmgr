@@ -28,8 +28,5 @@ jobs:
       - name: Install devscripts
         run: sudo apt -y install devscripts
 
-      - name: Install build dependencies
-        run: sudo mk-build-deps -i
-
       - name: Test build debian package
         run: debuild -b -us -uc
