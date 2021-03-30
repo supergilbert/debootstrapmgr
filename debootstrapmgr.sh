@@ -37,19 +37,13 @@ Chroot commands
                   service start
 
 Flash commands (/!\ caution in what you are flashing)
-  (Following commands use a default RPI and PC partition schema.
-   Searching for a way to bind the chroot directory with debian bootload
-   mechanism, partition table and fstab)
 
-  pc-flashchroot-to-img        Flash a pc chroot to an raw image file
-  pc-flashchroot-to-livesys    Flash a pc chroot to a live system (block device
-                               or file image)
-  rpi-flashchroot-to-blk       Flash a rpi chroot to an raw image file
-  rpi-flashchroot-to-partclone Flash a rpi chroot to partclones tgz image
-  rpi-flashpartclone-to-blk    Flash a partclones tgz image to a block device
-  rpi-chroot-to-livedir        Generate filesquash live system directory from
-                               chroot (with home directory linked from medium
-                               in rw mode)
+  pc-chroot-flash       Flash a pc chroot to an raw image file
+  pc-chroot-flash-live  Flash a pc chroot to a live system (block device
+                        or file image)
+  rpi-chroot-flash      Flash a rpi chroot to an raw image file
+  rpi-chroot-flash-live Flash a rpi chroot to a live system (block device
+                        or file image)
 "
 
 if [ $# -lt 1 ]; then
@@ -59,91 +53,55 @@ fi
 
 DMGR_CMD_NAME=$1
 
+. ${DMGR_CURRENT_DIR}/functions_chroot.sh
+. ${DMGR_CURRENT_DIR}/functions_flash.sh
+
 case $DMGR_CMD_NAME in
     "pc-debootstrap")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
         _debootstrap_pc "$@"
-
-        echo_notify "PC chroot generated at $DMGR_CHROOT_DIR"
+        echo_notify "Chroot generated"
         ;;
 
     "rpi-debootstrap")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
         _debootstrap_rpi "$@"
-
-        echo_notify "RPI chroot generated at $DMGR_CHROOT_DIR"
+        echo_notify "Chroot generated"
         ;;
 
     "chroot-exec")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
         _chroot_exec "$@"
-
         echo_notify "Chroot executions done"
         ;;
 
     "chroot")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
         _chroot "$@"
         ;;
 
-    "pc-flashchroot-to-livesys")
+    "pc-chroot-flash")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_flash.sh
-
-        _pc_dir_to_livesys "$@"
+        _pc_chroot_flash "$@"
+        echo_notify "Flash done"
         ;;
 
-    "rpi-flashchroot-to-partclone")
+    "pc-chroot-flash-live")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_flash.sh
-
-        _rpi_dir_to_partclone "$@"
-
-        echo_notify "Rpi partclones image done at $2"
+        _pc_chroot_flashlive "$@"
+        echo_notify "Flash done"
         ;;
 
-    "rpi-flashpartclone-to-blk")
+    "rpi-chroot-flash")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_flash.sh
-
-        _rpi_partclone_to_blk "$@"
-
-        echo_notify "Rpi flash done at $2"
+        _rpi_chroot_flash "$@"
+        echo_notify "Flash done"
         ;;
 
-    "rpi-flashchroot-to-blk")
+    "rpi-chroot-flash-live")
         shift
-
-        . ${DMGR_CURRENT_DIR}/functions_flash.sh
-
-        _rpi_dir_to_blk "$@"
-
-        echo_notify "Rpi image done at $2"
-        ;;
-
-    "rpi-chroot-to-livedir")
-        shift
-
-        . ${DMGR_CURRENT_DIR}/functions_flash.sh
-
-        _rpi_dir_to_livesys_dir "$@"
-
-        echo_notify "Rpi live directory done at $2"
+        _rpi_chroot_flashlive "$@"
+        echo_notify "Flash done"
         ;;
 
     "help")

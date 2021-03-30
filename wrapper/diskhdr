@@ -1,0 +1,9 @@
+#!/bin/sh
+
+DMGR_DISKHDR="/usr/lib/debootstrapmgr/diskhdr.py"
+
+if [ "$(id -u)" != 0 ]; then
+    sudo --preserve-env $DMGR_DISKHDR "$@"
+else
+    $DMGR_DISKHDR "$@"
+fi

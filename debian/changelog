@@ -1,0 +1,5 @@
+debootstrapmgr (0.1-1) unstable; urgency=medium
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- gilbr <gilbr@phenom>  Tue, 30 Mar 2021 10:31:47 +0200

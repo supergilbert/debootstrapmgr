@@ -1,0 +1,16 @@
+Source: debootstrapmgr
+Section: unknown
+Priority: optional
+Maintainer: gilbr <gilbr@phenom>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.5.1
+Homepage: <insert the upstream URL, if relevant>
+#Vcs-Browser: https://salsa.debian.org/debian/debootstrapmgr
+#Vcs-Git: https://salsa.debian.org/debian/debootstrapmgr.git
+Rules-Requires-Root: no
+
+Package: debootstrapmgr
+Architecture: any
+Depends: ${misc:Depends}, binfmt-support, coreutils, debootstrap, dosfstools, e2fsprogs, kpartx, partclone, parted, qemu-system-arm, qemu-user-static, rsync
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>

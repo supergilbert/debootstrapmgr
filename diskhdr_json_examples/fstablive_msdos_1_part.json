@@ -1,0 +1,19 @@
+{
+    "disks": [
+        {
+            "table": "msdos",
+            "parts": [
+                {
+                    "type": "fat32",
+                    "volname": "persistence"}
+            ]
+        }
+    ],
+    "fsarchs": [
+        {
+            "type": "live-fstab",
+            "disk": 0,
+            "partidx": 0
+        }
+    ]
+}

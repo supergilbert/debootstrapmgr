@@ -1,0 +1,34 @@
+{
+    "disks": [
+        {
+            "table": "gpt",
+            "parts": [
+                {
+                    "type": "fat32",
+                    "volname": "boot",
+                    "partname": "boot",
+                    "size": "1G"
+                },
+                {
+                    "type": "ext4",
+                    "volname": "sys",
+                    "partname": "sys"
+                }
+            ]
+        }
+    ],
+    "fsarchs": [
+        {
+            "type": "fstab",
+            "disk": 0,
+            "partidx": 1,
+            "parts": [
+                {
+                    "disk": 0,
+                    "partidx": 0,
+                    "mount": "/boot"
+                }
+            ]
+        }
+    ]
+}

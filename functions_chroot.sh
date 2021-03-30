@@ -2,20 +2,20 @@
 
 . ${DMGR_CURRENT_DIR}/functions.sh
 
-run_in_root_system ()
+_run_in_root_system ()
 {
-    local ROOT_DIR="$1"
-    shift
+    if [ $# -gt 1 ]; then
+        local _CHROOT_DIR="$1"
+        shift
 
-    if [ $# -ne 0 ]; then
         for EXE in "$@"; do
             echo_notify "Copying $(basename ${EXE})"
-            cp "$EXE" ${ROOT_DIR}/tmp
+            cp "$EXE" ${_CHROOT_DIR}/tmp
             echo_notify "Running $(basename ${EXE})"
-            if ! chroot "$ROOT_DIR" /tmp/$(basename "$EXE"); then
+            if ! chroot "$_CHROOT_DIR" /tmp/$(basename "$EXE"); then
                 cleanup_n_die 1 "Error while running $EXE"
             fi
-            rm ${ROOT_DIR}/tmp/$(basename "$EXE")
+            rm ${_CHROOT_DIR}/tmp/$(basename "$EXE")
             echo_notify "$(basename ${EXE}) done\n"
         done
     fi
@@ -80,7 +80,7 @@ unset_chroot_operation ()
 
     DEBIANATOR_RUNNING=""
 
-    echo_notify "Clean apt files ane remove service start bypass with policy-rc.d undivert ischroot"
+    echo_notify "Clean apt files and remove service start bypass with policy-rc.d undivert ischroot"
     chroot "$_CHROOT_PATH" /usr/bin/apt-get clean
     rm -rf ${_CHROOT_PATH}/var/lib/apt/lists/*
     rm -f ${_CHROOT_PATH}/usr/sbin/policy-rc.d
@@ -113,32 +113,6 @@ _set_chroot_hostname ()
     fi
 }
 
-wait_blk_path ()
-{
-    # Take the block device and the partition number as argument.
-    # Then check for available correspondance. (Need set -e)
-    local DMGR_BLK_REALPATH="$(realpath $1)"
-    if [ -z "$DMGR_BLK_REALPATH" ]; then
-        echo_die 1 "Block device path argument not set."
-    fi
-    if [ -z "$2" ]; then
-        echo_die 1 "Partition number argument not set."
-    fi
-    partprobe $1
-    TRY_NUMBER=10
-    for count in $(seq $TRY_NUMBER -1 0); do
-        if   [ -b "${DMGR_BLK_REALPATH}${2}" ]; then
-            echo -n "${DMGR_BLK_REALPATH}${2}"
-            return 0
-        elif [ -b "${DMGR_BLK_REALPATH}p${2}" ]; then
-            echo -n "${DMGR_BLK_REALPATH}p${2}"
-            return 0
-        fi
-        sleep 1
-    done
-    return 1
-}
-
 _handle_debootstrap_params ()
 {
     DMGR_GENSYS_SYNOPSIS="\
@@ -146,23 +120,23 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Generate a RPI Image.
 
 OPTIONS:
-  -a, --add-package=<PKG>           Add following package to the image
-  -C, --apt-cacher=<APT_CACHE_ADDR> Use an apt cache proxy
-  -d <DEST>, --destination <DEST>   Destination file (tar gzip)
-  -D, --distribution=<DIST>         Set the distribution
-  -e, --exec=<EXE>                  Multiple call of this option will add
-                                    executables to run during generation
-  -n, --no-default-pkg              Do not install default package (packages
-                                    needed for boot)
-  -H, --hostname                    Set the default hostname (otherwise
-                                    hostname is chroot debi)
-  -p, --password                    See the default root password (otherwise
-                                    root password is root)
-  -s, --sysv                        Use sysv instead of systemd
-  -h, --help                        Display this help
+  -a, --add-package=<PKG>            Add following package to the image
+  -C, --apt-cacher=<APT_CACHE_ADDR>  Use an temporary apt cache proxy
+  -d <DEST>, --destination <DEST>    Destination file (tar gzip)
+  -D, --distribution=<DIST>          Set the distribution
+  -e <EXE>, --exec=<EXE>             Run executable into the new system
+  -n, --no-default-pkg               Do not install default package (packages
+                                     needed for boot)
+  -H, --hostname                     Set the default hostname (otherwise
+                                     hostname is chroot debi)
+  -p, --password                     See the default root password (otherwise
+                                     root password is root)
+  -r <REPO_ADDR>, --repo <REPO_ADDR> Modify default repo addr (Unused on rpi generation)
+  -s, --sysv                         Use sysv instead of systemd
+  -h, --help                         Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,sysv' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:r:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,repo:,sysv' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -214,6 +188,11 @@ OPTIONS:
                 DMGR_ROOT_PASSWORD="$1"
                 shift
                 ;;
+            '-r'|'--repo')
+                shift
+                DMGR_REPO_ADDR="$1"
+                shift
+                ;;
             '-s'|'--sysv')
                 shift
                 DMGR_SYSV="ON"
@@ -256,19 +235,15 @@ OPTIONS:
     fi
 }
 
-_chroot_add_pkg_n_run_exe ()
+_chroot_add_pkg ()
 {
     local _CHROOT_DIR="$1"
+    shift
 
-    chroot $_CHROOT_DIR /usr/bin/apt-get update
-    if [ -n "$DMGR_ADD_PKG_LIST" ]; then
-        echo_notify "Following packages will be added:\n${DMGR_ADD_PKG_LIST}"
-        chroot ${_CHROOT_DIR} /usr/bin/apt-get --allow-unauthenticated -y install $DMGR_ADD_PKG_LIST
-    fi
-
-    if [ -n "$DMGR_EXE_LIST" ]; then
-        echo_notify "Executing: $DMGR_EXE_LIST"
-        run_in_root_system "$_CHROOT_DIR" $DMGR_EXE_LIST
+    if [ "$#" -gt 0 ]; then
+        chroot $_CHROOT_DIR /usr/bin/apt-get update
+        echo_notify "Following packages will be added:\n$*"
+        chroot $_CHROOT_DIR /usr/bin/apt-get --allow-unauthenticated -y install $*
     fi
 }
 
@@ -288,12 +263,14 @@ _debootstrap_pc ()
 
     echo_notify "Destination: $DMGR_DST"
 
-    DMGR_DEBIAN_URL="ftp.debian.org/debian"
+    if [ -z "$DMGR_REPO_ADDR" ]; then
+        DMGR_REPO_ADDR="ftp.debian.org/debian"
+    fi
 
     if [ -n "$DMGR_APT_CACHER" ]; then
-        DMGR_DEBOOTSTRAP_URL="http://${DMGR_APT_CACHER}/${DMGR_DEBIAN_URL}"
+        DMGR_DEBOOTSTRAP_URL="http://${DMGR_APT_CACHER}/${DMGR_REPO_ADDR}"
     else
-        DMGR_DEBOOTSTRAP_URL="http://${DMGR_DEBIAN_URL}"
+        DMGR_DEBOOTSTRAP_URL="http://${DMGR_REPO_ADDR}"
     fi
 
     echo_notify "Generating a bootstrap from ${DMGR_DEBOOTSTRAP_URL}."
@@ -313,11 +290,11 @@ _debootstrap_pc ()
 
     set_trap "trap_cleanup"
 
-    if ! debootstrap --components="main,contrib,non-free" --include="$DMGR_INCLUDE_PKG" --arch=amd64 --variant=minbase "$DMGR_DIST" "$DMGR_CHROOT_DIR" "$DMGR_DEBOOTSTRAP_URL"; then
+    if ! debootstrap --arch=amd64 --components="main,contrib,non-free" --include="$DMGR_INCLUDE_PKG" --variant=minbase "$DMGR_DIST" "$DMGR_CHROOT_DIR" "$DMGR_DEBOOTSTRAP_URL"; then
         set +e
         unset_chroot_operation ${DMGR_CHROOT_DIR}
         unset_trap
-        echo_die 1 "qemu-debootstrap failed."
+        echo_die 1 "debootstrap failed."
     fi
 
     setup_chroot_operation ${DMGR_CHROOT_DIR}
@@ -329,16 +306,6 @@ LANG="C"
 LANGUAGE="C"
 EOF
 
-    if [ -n "$DMGR_APT_CACHER" ]; then
-        cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_APT_CACHER}/${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
-EOF
-    else
-        cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
-EOF
-    fi
-
     if [ -z "$DMGR_NO_DEFAULT_PKG" ]; then
         chroot "$DMGR_CHROOT_DIR" /usr/bin/apt-get update
         chroot "$DMGR_CHROOT_DIR" /usr/bin/apt-get --allow-unauthenticated -y upgrade
@@ -347,7 +314,8 @@ EOF
 
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
-    _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
+    _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+    _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
 
@@ -355,7 +323,7 @@ EOF
 
     if [ -n "$DMGR_APT_CACHER" ]; then
         cat <<EOF > ${DMGR_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DMGR_DEBIAN_URL} $DMGR_DIST main contrib non-free
+deb http://${DMGR_REPO_ADDR} $DMGR_DIST main contrib non-free
 EOF
     fi
 }
@@ -401,15 +369,16 @@ _debootstrap_rpi ()
     {
         kill $(pidof qemu-arm-static) 1> /dev/null 2>&1
         unset_chroot_operation ${DMGR_CHROOT_DIR}
+        rm -rf $DMGR_CHROOT_DIR
     }
 
     set_trap "trap_cleanup"
 
-    if ! qemu-debootstrap --components="main,contrib,non-free,rpi" --include="$DMGR_INCLUDE_PKG" --no-check-gpg --arch=armhf --variant=minbase "$DMGR_DIST" "$DMGR_CHROOT_DIR" "$DMGR_DEBOOTSTRAP_URL"; then
+    if ! debootstrap --arch=armhf --components="main,contrib,non-free,rpi" --include="$DMGR_INCLUDE_PKG" --no-check-gpg --variant=minbase "$DMGR_DIST" "$DMGR_CHROOT_DIR" "$DMGR_DEBOOTSTRAP_URL"; then
         set +e
         trap_cleanup
         unset_trap
-        echo_die 1 "qemu-debootstrap failed."
+        echo_die 1 "debootstrap failed."
     fi
 
     setup_chroot_operation ${DMGR_CHROOT_DIR}
@@ -449,7 +418,8 @@ EOF
 
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
-    _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
+    _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+    _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
 
@@ -470,11 +440,10 @@ Usage: chroot-exec $DMGR_CMD_NAME [OPTIONS]
   Exec script or install package in a chroot preventing service running.
 
 OPTIONS:
-  -a, --add-package=<PKG>           Add following package to the image
-  -d <DEST>, --destination <DEST>   Destination file (tar gzip)
-  -e, --exec=<EXE>                  Multiple call of this option will add
-                                    executables to run during generation
-  -h, --help                        Display this help
+  -a, --add-package=<PKG>         Add following package
+  -d <DEST>, --destination <DEST> Destination file (tar gzip)
+  -e, --exec=<EXE>                Run executable
+  -h, --help                      Display this help
 "
 
     OPTS=$(getopt -n chroot-exec -o 'a:d:e:h' -l 'add-package:,destination:,exec:,help' -- "$@")
@@ -535,7 +504,8 @@ OPTIONS:
         set_trap "unset_chroot_operation $DMGR_CHROOT_DIR"
         setup_chroot_operation "$DMGR_CHROOT_DIR"
 
-        _chroot_add_pkg_n_run_exe "$DMGR_CHROOT_DIR"
+        _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+        _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
         unset_chroot_operation "$DMGR_CHROOT_DIR"
         unset_trap
