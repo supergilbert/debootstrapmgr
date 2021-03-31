@@ -9,7 +9,7 @@
             ]
         }
     ],
-    "fsarchs": [
+    "systems": [
         {
             "type": "debian-live-boot",
             "disk": 0,

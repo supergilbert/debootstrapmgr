@@ -9,23 +9,24 @@ import tempfile
 import time
 
 SYNOPSIS="""\
-Usage: diskhdr <JSONFILE|help> [COMMAND] [ARG]...
+Usage: diskhdr [JSONFILE|help] [COMMAND] [ARG]...
 Tool to format disk or file specified by a json file.
 
 Without COMMAND it will just check json file or display this help.
 
 COMMANDS:
+  part <FILE|BLOCKDEV>...
   format <FILE|BLOCKDEVICE>...
-  mount <FSARCH_IDX> <FILE|BLOCKDEVICE> <MOUNTPOINT_PATH>
-  umount <FSARCH_IDX> <FILE|BLOCKDEVICE>
-  fstab <FSARCH_IDX> <FILE|BLOCKDEVICE>
+  mount <SYSTEM_IDX> <FILE|BLOCKDEVICE> <MOUNTPOINT_PATH>
+  umount <SYSTEM_IDX> <FILE|BLOCKDEVICE>
+  fstab <SYSTEM_IDX> <FILE|BLOCKDEVICE>
   swapsize <DISK_IDX>
   minsize <DISK_IDX>
   mounts <DISK_IDX>
   help
 """
 
-CMD_lIST = ["format", "mount", "mounts", "umount", "fstab", "swapsize", "minsize"]
+CMD_lIST = ["part", "format", "mount", "mounts", "umount", "fstab", "swapsize", "minsize"]
 
 log_out = print
 log_msg = log_out
@@ -366,7 +367,20 @@ def dump_fstab(system_repr, disks_list, blk_prefix_list):
     log_out("\n".join(fstab_str_list))
 
 command = cmd_n_args[0]
-if command == "format":
+if command == "part":
+    if len(cmd_n_args) > 2:
+        log_out(SYNOPSIS)
+        die(1, "Wrong number of arguments (multiple device not yet supported)")
+    dst_path = os.path.realpath(cmd_n_args[1])
+    # if check_dstpath(dst_path) == DST_FILE:
+    #     using_kpartx = True
+    # else:
+    #     dst_path = os.path.realpath(dst_path)
+    format_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
+    log_msg(format_cmd)
+    if os.system(format_cmd) != 0:
+        die(1, "Format fail")
+elif command == "format":
     if len(cmd_n_args) > 2:
         log_out(SYNOPSIS)
         die(1, "Wrong number of arguments (multiple device not yet supported)")
