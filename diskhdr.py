@@ -57,9 +57,9 @@ else:
         die(1, "Unknown command %s" % sys.argv[2])
         sys.exit(0)
 
-class DKHRException(Exception):
+class DiskHandlerException(Exception):
     def __init__(self, message):
-        super(DKHRException, self).__init__(message)
+        super(DiskHandlerException, self).__init__(message)
 
 def get_mo_size(size_str):
     for suffix in ["T","TB","TO","Tb","To","t","tb","to"]:
@@ -87,37 +87,37 @@ def dkhr_check_partitions_size(partitions):
 
 def dkhr_check_disk_repr(disk_repr):
     if not "table" in disk_repr.keys():
-        raise DKHRException("check disk: the key 'table' missing")
+        raise DiskHandlerException("check disk: the key 'table' missing")
 
     if not "parts" in disk_repr.keys():
-        raise DKHRException("check disk: the key 'parts' missing")
+        raise DiskHandlerException("check disk: the key 'parts' missing")
 
     if len(disk_repr["parts"]) == 0:
-        raise DKHRException("check disk: No partitions")
+        raise DiskHandlerException("check disk: No partitions")
 
     if disk_repr["table"] == "msdos":
         if len(disk_repr["parts"]) > 4:
-            raise DKHRException("check disk: handle a maximum of 4 in msdos table (count:%d)"
+            raise DiskHandlerException("check disk: handle a maximum of 4 in msdos table (count:%d)"
                                 % len(disk_repr["parts"]))
         # for part in disk_repr["parts"]:
         #     if "partname" in part.keys():
         #         log_err("check disk: msdos do not handle partition name")
         for part in disk_repr["parts"]:
             if not "type" in part.keys():
-                DKHRException("check part: the key 'type' missing")
+                DiskHandlerException("check part: the key 'type' missing")
     elif disk_repr["table"] == "gpt":
         if len(disk_repr["parts"]) > 128:
-            raise DKHRException("check disk: Maximum partitions in gpt table is 128 (count:%d)"
+            raise DiskHandlerException("check disk: Maximum partitions in gpt table is 128 (count:%d)"
                                 % len(disk_repr["parts"]))
     else:
-        raise DKHRException("check disk: Unhandled partition table %s" % disk_repr["table"])
+        raise DiskHandlerException("check disk: Unhandled partition table %s" % disk_repr["table"])
 
     for part in disk_repr["parts"]:
         if not "type" in part.keys():
-            DKHRException("check part: the key 'type' missing")
+            DiskHandlerException("check part: the key 'type' missing")
 
     if not dkhr_check_partitions_size(disk_repr["parts"]):
-        raise DKHRException("check disk: Only one partition can have infinite size (some size missing)")
+        raise DiskHandlerException("check disk: Only one partition can have infinite size (some size missing)")
 
 def dkhr_get_min_size(disk_repr):
     size_in_mo = 0
@@ -128,10 +128,10 @@ def dkhr_get_min_size(disk_repr):
 
 def check_disks_repr_list(disks_list):
     if len(disks_list) == 0:
-        raise DKHRException("check disks: No disk found")
+        raise DiskHandlerException("check disks: No disk found")
 
     if len(disks_list) != 1:
-        raise DKHRException("check disks: Only one disk is currently available")
+        raise DiskHandlerException("check disks: Only one disk is currently available")
 
     dkhr_check_disk_repr(disks_list[0])
 
@@ -139,10 +139,10 @@ def check_systems_repr_list(systems_list, disks_list):
     check_disks_repr_list(disks_list)
 
     if len(systems_list) == 0:
-        raise DKHRException("check systems: No system found")
+        raise DiskHandlerException("check systems: No system found")
 
     if len(systems_list) != 1:
-        raise DKHRException("check systems: Only one system is currently available")
+        raise DiskHandlerException("check systems: Only one system is currently available")
 
 try:
     diskhdr_obj = json.loads(open(sys.argv[1], "r").read())
@@ -161,7 +161,7 @@ if not "systems" in diskhdr_obj.keys():
 
 try:
     check_systems_repr_list(diskhdr_obj["systems"], diskhdr_obj["disks"])
-except DKHRException as e:
+except DiskHandlerException as e:
     die(1, "Check error\n%s" % e)
 
 if len(sys.argv) < 3:
@@ -219,17 +219,18 @@ def gen_parted_create_cmd(disk_repr, path_dst):
                                                                         start="0%" if last_offset == 0 else "%dMB" % last_offset,
                                                                         end="100%")
         else:
-            raise DKHRException("gen_parted_create_cmd: infinite partition not at end will coming")
+            raise DiskHandlerException("gen_parted_create_cmd: infinite partition not at end will coming")
     return parted_cmd
 
 def wait_path(path):
+    # Get a better solution than sleep to wait partition (part probe check etc)
     count=20
     while count > 0:
         if os.path.exists(path):
             return
         count -= 1
         time.sleep(.5)
-    raise DKHRException("wait_path: timeout on %s" % path)
+    raise DiskHandlerException("wait_path: timeout on %s" % path)
 
 def gen_mkfs_cmd(part_list, blk_prefix):
     mkfs_cmd_list = []
@@ -241,8 +242,12 @@ def gen_mkfs_cmd(part_list, blk_prefix):
             mkfs_cmd_list.append("mkfs.fat -F32 %s > /dev/null 2>&1" % part_path)
         elif part["type"] == "ext4":
             mkfs_cmd_list.append("mkfs.ext4 -F %s > /dev/null 2>&1" % part_path)
-        else:# elif part["type"] == "linux-swap":
+        elif part["type"] == "linux-swap":
             mkfs_cmd_list.append("mkswap -f %s > /dev/null 2>&1" % part_path)
+        elif part["type"] == "ntfs":
+            mkfs_cmd_list.append("mkfs.ntfs -f %s > /dev/null 2>&1" % part_path)
+        else:
+            raise DiskHandlerException("Unhandled partition type %s" % part["type"])
         part_num += 1
     return " && ".join(mkfs_cmd_list)
 
@@ -252,12 +257,12 @@ def kpartx_file(filepath):
                                                 shell=True)
         kpartx_stdout_list = kpartx_stdout.decode("ascii").split(" ")
         if kpartx_stdout_list[0] != "add" or kpartx_stdout_list[1] != "map":
-            raise DKHRException("kpartx_file: kpartx output unexpected")
+            raise DiskHandlerException("kpartx_file: kpartx output unexpected")
         loop_num = int(kpartx_stdout_list[2].split("p")[1])
         # log_msg("file {file} mapped via kpartx on /dev/loop{num} (and /dev/mapper/loop{num}p*)".format(file=filepath, num=loop_num))
         return loop_num
     except:
-        raise DKHRException("kpartx_file: Unhandled error")
+        raise DiskHandlerException("kpartx_file: Unhandled error")
 
 DST_BLOCK = 0
 DST_FILE = 1
@@ -269,7 +274,7 @@ def check_dstpath(dstpath):
             mode = os.stat(dstpath1).st_mode
             if stat.S_ISBLK(mode):
                 return DST_BLOCK
-        raise DKHRException("%s does not exist" % dstpath)
+        raise DiskHandlerException("%s does not exist" % dstpath)
 
     mode = os.stat(dstpath).st_mode
     if stat.S_ISREG(mode):
@@ -277,7 +282,7 @@ def check_dstpath(dstpath):
     elif stat.S_ISBLK(mode):
         return DST_BLOCK
     else:
-        raise DKHRException("Unhandled type of file (%s)" % dstpath)
+        raise DiskHandlerException("Unhandled type of file (%s)" % dstpath)
 
 
 def set_kpartx_if_needed(dst_path):
@@ -294,7 +299,7 @@ using_kpartx = False
 
 def create_mountpoints(system_repr, disks_list, blk_prefix_list):
     if len(disks_list) != len(blk_prefix_list):
-        raise DKHRException("create_mountpoints: disk list and block list number mismatch")
+        raise DiskHandlerException("create_mountpoints: disk list and block list number mismatch")
     if "parts" in system_repr.keys():
         root_mountpoint = tempfile.mkdtemp(suffix="_diskhdr_mountpoints_gen")
         blkpath = blk_prefix_list[system_repr["disk"]] + "%d" % (system_repr["partidx"] + 1)
@@ -314,7 +319,7 @@ def mount_system(system_repr, blk_prefix_list, mountpoint):
                                        mount=mountpoint))
     os.system("mount {blk} {mount}".format(blk=blkpath,
                                            mount=mountpoint))
-    
+
     if "parts" in system_repr.keys():
         for part in system_repr["parts"]:
             if "mount" in part.keys():
@@ -336,6 +341,9 @@ def get_fsuuid(blk_prefix_list, disk_idx, part_idx):
     return lsblk_ret.decode("ascii")[:-1]
 
 def dump_fstab(system_repr, disks_list, blk_prefix_list):
+    if system_repr["type"] != "fstab":
+        raise DiskHandlerException("System is not an fstab type")
+
     fstab_str_list = ["proc /proc proc defaults 0 0"]
     uuid_str = get_fsuuid(blk_prefix_list, system_repr["disk"], system_repr["partidx"])
     fstype_str = disks_list[system_repr["disk"]]["parts"][system_repr["partidx"]]["type"]
@@ -382,15 +390,12 @@ if command == "format":
                 os.system("kpartx -d %s" % dst_path)
                 die(1, "%s: mkfs fail" % command)
             create_mountpoints(system_repr_list[0], disks_list, [blk_prefix])
-        except DKHRException as e:
+        except DiskHandlerException as e:
             log_err("Unable to create filesystem\n%s" % e)
         finally:
             os.system("kpartx -d %s" % dst_path)
     else:
         mkfs_cmd = gen_mkfs_cmd(disks_list[0]["parts"], dst_path)
-        # get a better solution (part probe check etc)
-        mkfs_cmd = "sleep 1 && " + mkfs_cmd
-        # log_msg("Running:\n%s" % mkfs_cmd)
         if os.system(mkfs_cmd) != 0:
             die(1, "Filesystems creation fail")
         create_mountpoints(system_repr_list[0], disks_list, [dst_path])

@@ -16,7 +16,7 @@ DEFAULT_LIVE_JSON="\
     ],
     \"systems\": [
         {
-            \"type\": \"live-fstab\",
+            \"type\": \"debian-live-boot\",
             \"disk\": 0,
             \"partidx\": 0
         }
