@@ -35,6 +35,7 @@ Chroot commands
   chroot-exec     Exec command in a chroot disabling its service start
   chroot          Run chroot (in the specified directory) and disabling its
                   service start
+  mklive-squashfs Generate a live squashfs file
 
 Flash commands (/!\ caution in what you are flashing)
 
@@ -44,6 +45,9 @@ Flash commands (/!\ caution in what you are flashing)
   rpi-chroot-flash      Flash a rpi chroot to an raw image file
   rpi-chroot-flash-live Flash a rpi chroot to a live system (block device
                         or file image)
+  dump_default_pc_json
+  dump_default_rpi_json
+  dump_default_live_json
 "
 
 if [ $# -lt 1 ]; then
@@ -80,6 +84,12 @@ case $DMGR_CMD_NAME in
         _chroot "$@"
         ;;
 
+    "mklive-squashfs")
+        shift
+        _chroot_to_live_squashfs "$@"
+        echo_notify "Live file squashfs executions done"
+        ;;
+
     "pc-chroot-flash")
         shift
         _pc_chroot_flash "$@"
@@ -106,6 +116,21 @@ case $DMGR_CMD_NAME in
 
     "help")
         echo "$DMGR_SYNOPSIS"
+        exit 0
+        ;;
+
+    "dump_default_pc_json")
+        echo "$DEFAULT_FSTAB_JSON"
+        exit 0
+        ;;
+
+    "dump_default_rpi_json")
+        echo "$DEFAULT_FSTAB_RPI_JSON"
+        exit 0
+        ;;
+
+    "dump_default_live_json")
+        echo "$DEFAULT_LIVE_JSON"
         exit 0
         ;;
 

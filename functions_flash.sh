@@ -205,73 +205,8 @@ OPTIONS:
 
     DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
 
-    . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
     if [ -n "$DMGR_JSON_ARG" ]; then
         DMGR_JSON="$DMGR_JSON_ARG"
-    fi
-}
-
-_handle_dir_to_livesys_args ()
-{
-    DMGR_LIVESYS_SYNOPSIS="\
-Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Convert a chroot to a live system an flash it to a block device or a file.
-
-OPTIONS:
-  -d <DST>, --destination <DST> Destination path
-  -h, --help                    Display this help
-  -s <SRC>, --source=<SRC>      Source chroot directory
-  -p, --add-persistence=PATH    Add persistency on specified path
-"
-
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:hp:s:' -l 'destination:,help,source:,add-persistence:' -- "$@")
-    #Bad arguments
-    if [ $? -ne 0 ]; then
-        echo_err "Bad arguments.\n"
-        exit 2
-    fi
-    eval set -- "$OPTS";
-    while true; do
-        case "$1" in
-            '-d'|'--destination')
-                shift
-                DMGR_DST_PATH="$1"
-                shift
-                ;;
-            '-h'|'--help')
-                echo "$DMGR_LIVESYS_SYNOPSIS"
-                exit 0
-                ;;
-            '-p'|'--add-persistence')
-                shift
-                DMGR_PERSISTENCE_PATHS="$DMGR_PERSISTENCE_PATHS $1"
-                shift
-                ;;
-            '-s'|'--source')
-                shift
-                DMGR_SRC_PATH="$1"
-                shift
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                echo "$DMGR_LIVESYS_SYNOPSIS"
-                echo_die 1 "Wrong argument $1"
-                ;;
-        esac
-    done
-
-    if [ -z "$DMGR_DST_PATH" ]; then
-        echo "$DMGR_LIVESYS_SYNOPSIS"
-        echo_die 1 "Destination is mandatory"
-    fi
-
-    if [ ! -d "$DMGR_SRC_PATH" ]; then
-        echo "$DMGR_LIVESYS_SYNOPSIS"
-        echo_die 1 "$DMGR_SRC_PATH chroot source directory does not exist"
     fi
 }
 
@@ -345,8 +280,6 @@ _pc_chroot_flash ()
 
     # Grub installation
 
-    . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
     setup_chroot_operation $DMGR_TMP_DIR
 
     echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
@@ -400,70 +333,6 @@ EOF
     unset_trap
 }
 
-_chroot_to_livesys_dir ()
-{
-    if [ 2 -ne "$#" ]; then
-        echo "$DMGR_LIVESYS_SYNOPSIS"
-        echo_die 1 "rpi_dir_to_img need 2 arguments."
-    fi
-    if [ ! -d "$1" -o ! -d "$2" ]; then
-        echo "$DMGR_LIVESYS_SYNOPSIS"
-        echo_die 1 "Need a directories as arguments"
-    fi
-
-    echo_notify "Generating live directory in $DMGR_DST_PATH"
-
-    echo_notify "Copying chroot $1 to $2 build directory ..."
-    mkdir -p ${2}/tmpdir
-    rsync -ad ${1}/* ${2}/tmpdir/
-    echo_notify "Copy done"
-
-    . ${DMGR_CURRENT_DIR}/functions_chroot.sh
-
-    echo_notify "Generating live-boot initrd and filesquahfs ..."
-
-    if [ "$DMGR_TYPE" = "RPI" ]; then
-        # Hack for raspbian kernel version handling
-        INITRAMFS_GEN_SH=$(mktemp --suffix=_initramfs_gen.sh)
-        set_trap "unset_chroot_operation ${2}/tmpdir; rm -rf INITRAMFS_GEN_SH"
-        setup_chroot_operation ${2}/tmpdir
-        cat <<EOF > $INITRAMFS_GEN_SH
-#!/bin/sh -ex
-
-for kversion in \$(ls /lib/modules); do
-    mkinitramfs -o /boot/initrd-\${kversion}.img \$kversion
-done
-EOF
-        chmod +x $INITRAMFS_GEN_SH
-        _chroot_add_pkg ${2}/tmpdir live-boot
-        _run_in_root_system ${2}/tmpdir $INITRAMFS_GEN_SH
-        rm -f $INITRAMFS_GEN_SH
-        unset_chroot_operation ${2}/tmpdir
-        unset_trap
-    else
-        set_trap "unset_chroot_operation ${2}/tmpdir"
-        setup_chroot_operation ${2}/tmpdir
-        _chroot_add_pkg  ${2}/tmpdir live-boot
-        chroot ${2}/tmpdir update-initramfs -u -k all
-        unset_chroot_operation ${2}/tmpdir
-        unset_trap
-    fi
-
-    if [ -n "$DMGR_PERSISTENCE_PATHS" ]; then
-        mkdir ${2}/persistence
-        for ppath in $DMGR_PERSISTENCE_PATHS; do
-            mv ${2}/tmpdir${ppath} ${2}/persistence
-            echo "$ppath source=persistence/$(basename $ppath)" >> ${2}/persistence.conf
-        done
-    fi
-
-    mv ${2}/tmpdir/boot/* ${2}/
-
-    mkdir ${2}/live
-    mksquashfs ${2}/tmpdir ${2}/live/filesystem.squashfs
-    rm -rf ${2}/tmpdir
-}
-
 _handle_flashlive_block_or_file ()
 {
     DMGR_JSON="$(mktemp --suffix=_json)"
@@ -504,7 +373,7 @@ _pc_chroot_flashlive ()
     $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
     $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
-    rsync -ad ${DMGR_TMP_DIR}/live/* ${DMGR_TMP_DIR}/mnt
+    rsync --modify-window=1 --update --recursive ${DMGR_TMP_DIR}/live/* ${DMGR_TMP_DIR}/mnt
 
     # Setup Boot
     mv ${DMGR_TMP_DIR}/mnt/vmlinuz* ${DMGR_TMP_DIR}/mnt/vmlinuz
@@ -565,12 +434,6 @@ _rpi_chroot_flash ()
     $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
     DMGR_FSTAB_STR="$($diskhdr_cmd $DMGR_JSON fstab 0 $DMGR_DST_PATH)"
     $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
-
-    # if [ -n "$DMGR_IMAGE_TYPE" ]; then
-    #     DMGR_BLKDEV=$(losetup --raw | grep $DMGR_DST_PATH | cut -f 1 -d' ')
-    # else
-    #     DMGR_BLKDEV=$DMGR_DST_PATH
-    # fi
 
     echo_notify "Copying files ..."
     rsync -ad ${DMGR_CHROOT_DIR}/* ${DMGR_TMP_DIR}
