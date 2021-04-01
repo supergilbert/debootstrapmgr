@@ -45,9 +45,9 @@ Flash commands (/!\ caution in what you are flashing)
   rpi-chroot-flash      Flash a rpi chroot to an raw image file
   rpi-chroot-flash-live Flash a rpi chroot to a live system (block device
                         or file image)
-  dump_default_pc_json
-  dump_default_rpi_json
-  dump_default_live_json
+  dump-default-pc-json
+  dump-default-rpi-json
+  dump-default-live-json
 "
 
 if [ $# -lt 1 ]; then
@@ -119,17 +119,17 @@ case $DMGR_CMD_NAME in
         exit 0
         ;;
 
-    "dump_default_pc_json")
+    "dump-default-pc-json")
         echo "$DEFAULT_FSTAB_JSON"
         exit 0
         ;;
 
-    "dump_default_rpi_json")
+    "dump-default-rpi-json")
         echo "$DEFAULT_FSTAB_RPI_JSON"
         exit 0
         ;;
 
-    "dump_default_live_json")
+    "dump-default-live-json")
         echo "$DEFAULT_LIVE_JSON"
         exit 0
         ;;

@@ -50,9 +50,9 @@ qemu-system-x86
       rpi-chroot-flash      Flash a rpi chroot to an raw image file
       rpi-chroot-flash-live Flash a rpi chroot to a live system (block device
                             or file image)
-      dump_default_pc_json
-      dump_default_rpi_json
-      dump_default_live_json
+      dump-default-pc-json
+      dump-default-rpi-json
+      dump-default-live-json
 
 ## TODO
 
