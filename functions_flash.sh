@@ -247,8 +247,8 @@ _pc_chroot_flash ()
     if [ ! -e "$DMGR_DST_PATH" ]; then
         echo_notify "$DMGR_DST_PATH not found generating image file"
         DMGR_IMAGE_TYPE="ON"
-        # Adding 200Mo for grub
-        DMGR_DISK_SIZE="$(($(_get_sys_min_size ${DMGR_CHROOT_DIR}) + $($diskhdr_cmd $DMGR_JSON minsize 0) + 200))"
+        # Adding 500Mo for grub
+        DMGR_DISK_SIZE="$(($(_get_sys_min_size ${DMGR_CHROOT_DIR}) + $($diskhdr_cmd $DMGR_JSON minsize 0) + 500))"
         truncate -s ${DMGR_DISK_SIZE}M $DMGR_DST_PATH
     else
         DMGR_DST_PATH="$(realpath $DMGR_DST_PATH)"
