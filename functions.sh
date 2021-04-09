@@ -23,14 +23,6 @@ cleanup ()
     echo "No cleanup function"
 }
 
-cleanup_n_die ()
-{
-    set +e
-    cleanup
-    set +x
-    echo_die "$@"
-}
-
 TRAP_LIST="INT TERM EXIT"
 
 unset_trap ()

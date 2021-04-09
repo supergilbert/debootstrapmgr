@@ -110,7 +110,7 @@ DEFAULT_FSTAB_RPI_JSON="\
 
 # PC Part
 
-DMGR_SIZE_1G=1048576
+# DMGR_SIZE_1G=1048576
 
 _handle_flash_args ()
 {
@@ -119,12 +119,15 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Flash a chroot to a block device or a file.
 
 OPTIONS:
+  -a, --add-package=<PKG>       Add following debian package to the image
   -d <DST>, --destination=<DST> Destination path
+  -e <EXE>, --exec=<EXE>        Run executable into the new system
   -E, --efi                     Install grub-efi-amd64 instead of grub-pc
   -j <JSON>, --json <JSON>      Specify a json filesystem architecture
   -g, --gpt                     Setup an \"GPT\" partition table
                                 instead of \"MSDOS\"
   -s <SRC>, --source=<SRC>      Chroot directory
+  -S <SIZE>, --size=<SIZE>      Set image giga-octet size
   -w <SIZE>, --swap=<SIZE>      Swap size in Go (default 2Go)
   -h, --help                    Display this help
 "
@@ -138,9 +141,19 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
+            '-a'|'--add-package')
+                shift
+                DMGR_ADD_PKG_LIST="$DMGR_ADD_PKG_LIST $1"
+                shift
+                ;;
             '-d'|'--destination')
                 shift
                 DMGR_DST_PATH="$1"
+                shift
+                ;;
+            '-e'|'--executable')
+                shift
+                DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
                 ;;
             '-E'|'--efi')
@@ -155,7 +168,12 @@ OPTIONS:
                 ;;
             '-s'|'--source')
                 shift
-                DMGR_CHROOT_DIR="$1"
+                DMGR_SRC_DIR="$1"
+                shift
+                ;;
+            '-S'|'--size')
+                shift
+                DMGR_IMG_SIZE="$1"
                 shift
                 ;;
             '-g'|'--gpt')
@@ -188,9 +206,9 @@ OPTIONS:
         echo_die 1 "Destination is mandatory"
     fi
 
-    if [ ! -d "$DMGR_CHROOT_DIR" ]; then
+    if [ ! -d "$DMGR_SRC_DIR" ]; then
         echo "$DMGR_PC_FLASHIMG_SYNOPSIS"
-        echo_die 1 "$DMGR_CHROOT_DIR chroot source directory does not exist"
+        echo_die 1 "$DMGR_SRC_DIR chroot source directory does not exist"
     fi
 
     if [ -z "$DMGR_SWAP_SIZE" ]; then
@@ -203,10 +221,21 @@ OPTIONS:
 
     diskhdr_cmd="${DMGR_CURRENT_DIR}/diskhdr.py"
 
-    DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
-
     if [ -n "$DMGR_JSON_ARG" ]; then
         DMGR_JSON="$DMGR_JSON_ARG"
+    fi
+
+    if [ -e "$DMGR_DST_PATH" ]; then
+        DMGR_DST_PATH="$(realpath $DMGR_DST_PATH)"
+        if [ ! -b "$DMGR_DST_PATH" ]; then
+            echo_die 1 "$DMGR_DST_PATH image already exist or is not a block device"
+        else
+            if [ -n "$DMGR_IMG_SIZE" ]; then
+                echo_die 1 "Can not set size on block device"
+            fi
+        fi
+    else
+        DMGR_IMAGE_TYPE="ON"
     fi
 }
 
@@ -230,9 +259,78 @@ _get_sys_min_size ()
     echo $_SIZE
 }
 
+_handle_flash_dest_copy_n_set_trap ()
+{
+    # TODO factorise with rpi
+    unset_trap
+    if [ "$DMGR_IMAGE_TYPE" = "ON" ]; then
+        echo_notify "Generating image file in $DMGR_DST_PATH"
+        DMGR_MIN_SIZE="$(($(_get_sys_min_size ${DMGR_TMP_DIR}/chroot) + $($diskhdr_cmd $DMGR_JSON minsize 0)))"
+        if [ -z "$DMGR_IMG_SIZE" ]; then
+            truncate -s ${DMGR_MIN_SIZE}M $DMGR_DST_PATH
+        else
+            if [ "$(($DMGR_IMG_SIZE * 1024))" -lt "$DMGR_MIN_SIZE" ];then
+                echo_die 1 "Size ${DMGR_IMG_SIZE}G is less than ${DMGR_MINK_SIZE}K"
+            fi
+            truncate -s ${DMGR_IMG_SIZE}G $DMGR_DST_PATH
+        fi
+        if [ -n "$DMGR_JSON_ARG" ]; then
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_DST_PATH $DMGR_TMP_DIR"
+        else
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_DST_PATH $DMGR_TMP_DIR $DMGR_JSON"
+        fi
+    else
+        if [ -n "$DMGR_JSON_ARG" ]; then
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSN umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR"
+        else
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSN umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
+        fi
+    fi
+
+    $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
+    DMGR_FSTAB_STR="$($diskhdr_cmd $DMGR_JSON fstab 0 $DMGR_DST_PATH)"
+    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
+
+    echo_notify "Copying files ..."
+    rsync -ad ${DMGR_TMP_DIR}/chroot/* ${DMGR_TMP_DIR}/mnt/
+    echo_notify "Files copy done"
+    echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/mnt/etc/fstab
+
+    rm -rf ${DMGR_TMP_DIR}/chroot
+}
+
 _pc_chroot_flash ()
 {
     _handle_flash_args "$@"
+
+    DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
+    mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
+
+    set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/chroot; rm -rf $DMGR_TMP_DIR"
+
+    # TODO if no src generate default chroot
+    echo_notify "Copying files ..."
+    rsync -ad ${DMGR_SRC_DIR}/* ${DMGR_TMP_DIR}/chroot
+    echo_notify "Files copy done"
+
+    # chroot installations
+    setup_chroot_operation ${DMGR_TMP_DIR}/chroot
+
+    if [ -n "$DMGR_GRUBEFI" ]; then
+        chroot ${DMGR_TMP_DIR}/chroot apt update
+        chroot ${DMGR_TMP_DIR}/chroot apt -y install grub-efi-amd64 grub-efi-amd64-signed
+    else
+        chroot ${DMGR_TMP_DIR}/chroot apt update
+        chroot ${DMGR_TMP_DIR}/chroot apt -y install grub-pc
+    fi
+
+    _chroot_add_pkg ${DMGR_TMP_DIR}/chroot $DMGR_ADD_PKG_LIST
+    _run_in_root_system ${DMGR_TMP_DIR}/chroot $DMGR_EXE_LIST
+
+    unset_chroot_operation ${DMGR_TMP_DIR}/chroot
+
+    unset_trap
+    set_trap "rm -rf $DMGR_TMP_DIR"
 
     if [ -z "$DMGR_JSON"]; then
         if [ -n "$DMGR_GPTTABLE" ]; then
@@ -240,33 +338,13 @@ _pc_chroot_flash ()
         else
             PART_TABLE="msdos"
         fi
-        DMGR_JSON="$(mktemp --suffix=_json)"
+        DMGR_JSON="${DMGR_TMP_DIR}/diskhdr.json"
         echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
     fi
 
-    if [ ! -e "$DMGR_DST_PATH" ]; then
-        echo_notify "$DMGR_DST_PATH not found generating image file"
-        DMGR_IMAGE_TYPE="ON"
-        # Adding 500Mo for grub
-        DMGR_DISK_SIZE="$(($(_get_sys_min_size ${DMGR_CHROOT_DIR}) + $($diskhdr_cmd $DMGR_JSON minsize 0) + 500))"
-        truncate -s ${DMGR_DISK_SIZE}M $DMGR_DST_PATH
-    else
-        DMGR_DST_PATH="$(realpath $DMGR_DST_PATH)"
-        if [ ! -b "$DMGR_DST_PATH" ]; then
-            echo_die 1 "$DMGR_DST_PATH already exist or is not a block device"
-        fi
-        # check block size
-    fi
+    _handle_flash_dest_copy_n_set_trap
 
-    if [ -n "$DMGR_JSON_ARG" ]; then
-        set_trap "rm -f ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH; unset_chroot_operation $DMGR_TMP_DIR; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
-    else
-        set_trap "rm -f ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH; unset_chroot_operation $DMGR_TMP_DIR; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR; rm -rf $DMGR_TMP_DIR"
-    fi
-
-    $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
-    DMGR_FSTAB_STR="$($diskhdr_cmd $DMGR_JSON fstab 0 $DMGR_DST_PATH)"
-    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
+    # Grub installation
 
     if [ -n "$DMGR_IMAGE_TYPE" ]; then
         DMGR_BLKDEV=$(losetup --raw | grep $DMGR_DST_PATH | cut -f 1 -d' ')
@@ -274,61 +352,49 @@ _pc_chroot_flash ()
         DMGR_BLKDEV=$DMGR_DST_PATH
     fi
 
-    echo_notify "Copying files ..."
-    rsync -ad ${DMGR_CHROOT_DIR}/* ${DMGR_TMP_DIR}
-    echo_notify "Files copy done"
-
-    # Grub installation
-
-    setup_chroot_operation $DMGR_TMP_DIR
-
-    echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
+    setup_chroot_operation ${DMGR_TMP_DIR}/mnt
 
     _dmgr_install_tmp_grub_cfg ()
     {
-        GRUB_CFG_PATH=${DMGR_TMP_DIR}/etc/default/grub.d/dmgr.cfg
+        GRUB_CFG_PATH=${DMGR_TMP_DIR}/mnt/etc/default/grub.d/dmgr.cfg
         cat <<EOF > $GRUB_CFG_PATH
 GRUB_DISABLE_OS_PROBER="true"
 EOF
-        sed -i 's/#GRUB_DISABLE_RECOVERY="true"/GRUB_DISABLE_RECOVERY="true"/' ${DMGR_TMP_DIR}/etc/default/grub
-        cat <<EOF > ${DMGR_TMP_DIR}/boot/grub/device.map
+        sed -i 's/#GRUB_DISABLE_RECOVERY="true"/GRUB_DISABLE_RECOVERY="true"/' ${DMGR_TMP_DIR}/mnt/etc/default/grub
+        cat <<EOF > ${DMGR_TMP_DIR}/mnt/boot/grub/device.map
 (hd0) $DMGR_BLKDEV
 EOF
     }
 
     if [ -n "$DMGR_GRUBEFI" ]; then
-        chroot $DMGR_TMP_DIR apt update
-        chroot $DMGR_TMP_DIR apt -y install grub-efi-amd64 grub-efi-amd64-signed
-
         _dmgr_install_tmp_grub_cfg
 
         echo_notify "Installing grub"
-        chroot $DMGR_TMP_DIR grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force || true
-        chroot $DMGR_TMP_DIR update-grub || true
+        chroot ${DMGR_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force || true
+        chroot ${DMGR_TMP_DIR}/mnt update-grub || true
         echo_notify "grub installed"
     else
-        chroot $DMGR_TMP_DIR apt update
-        chroot $DMGR_TMP_DIR apt -y install grub-pc
-
         _dmgr_install_tmp_grub_cfg
 
         echo_notify "Installing grub"
-        chroot $DMGR_TMP_DIR grub-install --force --target=i386-pc $DMGR_BLKDEV || true
-        chroot $DMGR_TMP_DIR grub-mkconfig -o /boot/grub/grub.cfg || true
+        chroot ${DMGR_TMP_DIR}/mnt grub-install --force --target=i386-pc $DMGR_BLKDEV || true
+        chroot ${DMGR_TMP_DIR}/mnt grub-mkconfig -o /boot/grub/grub.cfg || true
         echo_notify "grub installed"
     fi
 
-    rm ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH
+    rm ${DMGR_TMP_DIR}/mnt/boot/grub/device.map $GRUB_CFG_PATH
 
-    unset_chroot_operation $DMGR_TMP_DIR
+    unset_chroot_operation ${DMGR_TMP_DIR}/mnt
 
-    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
+    # End of grub installation
 
-    rm -rf $DMGR_TMP_DIR
+    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
     if [ -z "$DMGR_JSON_ARG" ]; then
         rm -f $DMGR_JSON
     fi
+
+    rm -rf $DMGR_TMP_DIR
 
     unset_trap
 }
@@ -401,53 +467,44 @@ _rpi_chroot_flash ()
 {
     _handle_flash_args "$@"
 
+    DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
+    mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
+
+    set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/chroot; rm -rf $DMGR_TMP_DIR"
+
+    # TODO if no src generate default chroot
+    echo_notify "Copying files ..."
+    rsync -ad ${DMGR_SRC_DIR}/* ${DMGR_TMP_DIR}/chroot
+    echo_notify "Files copy done"
+
+    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_EXE_LIST" ]; then
+        setup_chroot_operation ${DMGR_TMP_DIR}/chroot
+        _chroot_add_pkg ${DMGR_TMP_DIR}/chroot $DMGR_ADD_PKG_LIST
+        _run_in_root_system ${DMGR_TMP_DIR}/chroot $DMGR_EXE_LIST
+        unset_chroot_operation ${DMGR_TMP_DIR}/chroot
+    fi
+
+    unset_trap
+
     if [ -z "$DMGR_JSON"]; then
         if [ -n "$DMGR_GPTTABLE" ]; then
             PART_TABLE="gpt"
         else
             PART_TABLE="msdos"
         fi
-        DMGR_JSON="$(mktemp --suffix=_json)"
-        echo "$DEFAULT_FSTAB_RPI_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DMGR_SWAP_SIZE}/g" > $DMGR_JSON
+        DMGR_JSON="${DMGR_TMP_DIR}/diskhdr.json"
+        echo "$DEFAULT_FSTAB_RPI_JSON" > $DMGR_JSON
     fi
 
-    if [ ! -e "$DMGR_DST_PATH" ]; then
-        echo_notify "$DMGR_DST_PATH not found generating image file"
-        # DMGR_IMAGE_TYPE="ON"
-        DMGR_DISK_SIZE="$(($(_get_sys_min_size ${DMGR_CHROOT_DIR}) + $($diskhdr_cmd $DMGR_JSON minsize 0)))"
-        DMGR_DISK_SIZE="$(($DMGR_DISK_SIZE * 110 / 100))"
-        truncate -s ${DMGR_DISK_SIZE}M $DMGR_DST_PATH
-    else
-        DMGR_DST_PATH="$(realpath $DMGR_DST_PATH)"
-        if [ ! -b "$DMGR_DST_PATH" ]; then
-            echo_die 1 "$DMGR_DST_PATH already exist or is not a block device"
-        fi
-        # check block size
-    fi
+    _handle_flash_dest_copy_n_set_trap
 
-    if [ -n "$DMGR_JSON_ARG" ]; then
-        set_trap "rm -f ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH; unset_chroot_operation $DMGR_TMP_DIR; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
-    else
-        set_trap "rm -f ${DMGR_TMP_DIR}/boot/grub/device.map $GRUB_CFG_PATH; unset_chroot_operation $DMGR_TMP_DIR; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR; rm -rf $DMGR_TMP_DIR"
-    fi
-
-    $diskhdr_cmd $DMGR_JSON format $DMGR_DST_PATH
-    DMGR_FSTAB_STR="$($diskhdr_cmd $DMGR_JSON fstab 0 $DMGR_DST_PATH)"
-    $diskhdr_cmd $DMGR_JSON mount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
-
-    echo_notify "Copying files ..."
-    rsync -ad ${DMGR_CHROOT_DIR}/* ${DMGR_TMP_DIR}
-    echo_notify "Files copy done"
-
-    echo "$DMGR_FSTAB_STR" > ${DMGR_TMP_DIR}/etc/fstab
-
-    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH $DMGR_TMP_DIR
-
-    rm -rf $DMGR_TMP_DIR
+    $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt
 
     if [ -z "$DMGR_JSON_ARG" ]; then
         rm -f $DMGR_JSON
     fi
+
+    rm -rf $DMGR_TMP_DIR
 
     unset_trap
 }

@@ -13,7 +13,7 @@ _run_in_root_system ()
             cp "$EXE" ${_CHROOT_DIR}/tmp
             echo_notify "Running $(basename ${EXE})"
             if ! chroot "$_CHROOT_DIR" /tmp/$(basename "$EXE"); then
-                cleanup_n_die 1 "Error while running $EXE"
+                echo_die 1 "Error while running $EXE"
             fi
             rm ${_CHROOT_DIR}/tmp/$(basename "$EXE")
             echo_notify "$(basename ${EXE}) done\n"
@@ -66,25 +66,21 @@ setup_chroot_operation ()
 exit 101
 EOF
     echo_notify "divert ischroot"
-    DIVERT_FILE="/usr/bin/ischroot.tmpor"
+    _DIVERT_FILE="/usr/bin/ischroot.tmpor"
     export DEBIAN_FRONTEND=noninteractive
-    chroot "$_CHROOT_PATH" dpkg-divert --divert "$DIVERT_FILE" --rename /usr/bin/ischroot
+    chroot "$_CHROOT_PATH" dpkg-divert --divert "$_DIVERT_FILE" --rename /usr/bin/ischroot
     chroot "$_CHROOT_PATH" ln -s /bin/true /usr/bin/ischroot
-
-    DEBIANATOR_RUNNING="YES"
 }
 
 unset_chroot_operation ()
 {
     _CHROOT_PATH="$1"
 
-    DEBIANATOR_RUNNING=""
-
     echo_notify "Clean apt files and remove service start bypass with policy-rc.d undivert ischroot"
     chroot "$_CHROOT_PATH" /usr/bin/apt-get clean
     rm -rf ${_CHROOT_PATH}/var/lib/apt/lists/*
     rm -f ${_CHROOT_PATH}/usr/sbin/policy-rc.d
-    if [ -f "${_CHROOT_PATH}${DIVERT_FILE}" ]; then
+    if [ -f "${_CHROOT_PATH}${_DIVERT_FILE}" ]; then
         rm -f ${_CHROOT_PATH}/usr/bin/ischroot
         chroot "$_CHROOT_PATH" dpkg-divert --rename --remove /usr/bin/ischroot
     fi
@@ -117,10 +113,10 @@ _handle_debootstrap_params ()
 {
     DMGR_GENSYS_SYNOPSIS="\
 Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
-  Generate a RPI Image.
+  Generate a debian chroot with deboostrap.
 
 OPTIONS:
-  -a, --add-package=<PKG>            Add following package to the image
+  -a, --add-package=<PKG>            Add following debian package to the image
   -C, --apt-cacher=<APT_CACHE_ADDR>  Use an temporary apt cache proxy
   -d <DEST>, --destination <DEST>    Destination file (tar gzip)
   -D, --distribution=<DIST>          Set the distribution
@@ -440,7 +436,7 @@ Usage: chroot-exec $DMGR_CMD_NAME [OPTIONS]
   Exec script or install package in a chroot preventing service running.
 
 OPTIONS:
-  -a, --add-package=<PKG>         Add following package
+  -a, --add-package=<PKG>         Add following debian package
   -d <DEST>, --destination <DEST> Destination file (tar gzip)
   -e, --exec=<EXE>                Run executable
   -h, --help                      Display this help
@@ -590,6 +586,13 @@ EOF
             mv ${2}/tmpdir${ppath} ${2}/persistence
             echo "$ppath source=persistence/$(basename $ppath)" >> ${2}/persistence.conf
         done
+    fi
+
+    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_EXE_LIST" ]; then
+        setup_chroot_operation ${2}/tmpdir
+        _chroot_add_pkg ${2}/tmpdir $DMGR_ADD_PKG_LIST
+        _run_in_root_system ${2}/tmpdir $DMGR_EXE_LIST
+        unset_chroot_operation ${2}/tmpdir
     fi
 
     mv ${2}/tmpdir/boot/* ${2}/
