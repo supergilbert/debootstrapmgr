@@ -227,7 +227,7 @@ OPTIONS:
     fi
 
     if [ -z "$DMGR_HOSTNAME" ]; then
-        export DMGR_HOSTNAME="debi"
+        export DMGR_HOSTNAME="dbmgrsys"
     fi
 }
 
@@ -609,13 +609,15 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Convert a chroot to a live system an flash it to a block device or a file.
 
 OPTIONS:
+  -a <PKG>, --add-package=<PKG> Add following debian package to the image
   -d <DST>, --destination <DST> Destination path
+  -e <EXE>, --exec=<EXE>        Run executable into the new system
   -h, --help                    Display this help
   -s <SRC>, --source=<SRC>      Source chroot directory
   -p, --add-persistence=PATH    Add persistency on specified path
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:hp:s:' -l 'destination:,help,source:,add-persistence:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hp:s:' -l 'add-package:,destination:,exec:,help,source:,add-persistence:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -624,9 +626,19 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
+            '-a'|'--add-package')
+                shift
+                DMGR_ADD_PKG_LIST="$DMGR_ADD_PKG_LIST $1"
+                shift
+                ;;
             '-d'|'--destination')
                 shift
                 DMGR_DST_PATH="$1"
+                shift
+                ;;
+            '-e'|'--executable')
+                shift
+                DMGR_EXE_LIST="$DMGR_EXE_LIST $1"
                 shift
                 ;;
             '-h'|'--help')
@@ -675,19 +687,23 @@ _chroot_to_live_squashfs ()
 
     DMGR_TMPDIR="$(mktemp -d --suffix=_dmgr_tmpdir)"
     DMGR_EXCLUSION_FILE="$(mktemp --suffix=_dmgr_exclusion)"
-    set_trap "unset_chroot_operation $DMGR_TMPDIR; rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMPDIR"
+    # set_trap "unset_chroot_operation $DMGR_TMPDIR; rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMPDIR"
+    set_trap "unset_chroot_operation $DMGR_TMPDIR; rm -rf $DMGR_TMPDIR"
 
     echo_notify "Copying chroot directory ..."
-    echo "/boot/" > $DMGR_EXCLUSION_FILE
-    for ex in $DMGR_PERSISTENCE_PATHS; do
-        echo "${ex}" >> $DMGR_EXCLUSION_FILE
-    done
-    rsync --exclude-from=$DMGR_EXCLUSION_FILE -ad ${DMGR_SRC_PATH}/* ${DMGR_TMPDIR}/
+    rsync -ad ${DMGR_SRC_PATH}/* ${DMGR_TMPDIR}/
     echo_notify "Copy done."
 
     setup_chroot_operation $DMGR_TMPDIR
     _chroot_add_pkg $DMGR_TMPDIR live-boot
+    _chroot_add_pkg ${DMGR_TMP_DIR} $DMGR_ADD_PKG_LIST
+    _run_in_root_system ${DMGR_TMP_DIR} $DMGR_EXE_LIST
     unset_chroot_operation $DMGR_TMPDIR
+
+    rm -rf ${DMGR_TMP_DIR}/boot
+    for pers_path in $DMGR_PERSISTENCE_PATHS; do
+        rm -rf ${DMGR_TMP_DIR}${pers_path}
+    done
 
     mksquashfs $DMGR_SRC_PATH $DMGR_DST_PATH
 

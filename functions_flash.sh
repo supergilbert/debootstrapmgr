@@ -75,7 +75,7 @@ DEFAULT_FSTAB_RPI_JSON="\
 {
     \"disks\": [
         {
-            \"table\": \"gpt\",
+            \"table\": \"msdos\",
             \"parts\": [
                 {
                     \"type\": \"fat32\",
@@ -119,7 +119,7 @@ Usage: $DMGR_NAME $DMGR_CMD_NAME [OPTIONS]
   Flash a chroot to a block device or a file.
 
 OPTIONS:
-  -a, --add-package=<PKG>       Add following debian package to the image
+  -a <PKG>, --add-package=<PKG> Add following debian package to the image
   -d <DST>, --destination=<DST> Destination path
   -e <EXE>, --exec=<EXE>        Run executable into the new system
   -E, --efi                     Install grub-efi-amd64 instead of grub-pc
@@ -132,7 +132,7 @@ OPTIONS:
   -h, --help                    Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'd:Egj:hs:S:w:' -l 'destination:,efi,gpt,json:,help,image-size:,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:Egj:hs:S:w:' -l 'add-package:,destination:,exec:,efi,gpt,json:,help,image-size:,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -211,6 +211,10 @@ OPTIONS:
         echo_die 1 "$DMGR_SRC_DIR chroot source directory does not exist"
     fi
 
+    if [ -n "$DMGR_EXE_LIST" ]; then
+        check_exe_list $DMGR_EXE_LIST
+    fi
+
     if [ -z "$DMGR_SWAP_SIZE" ]; then
         # Default 2Go
         DMGR_SWAP_SIZE="2G"
@@ -281,9 +285,9 @@ _handle_flash_dest_copy_n_set_trap ()
         fi
     else
         if [ -n "$DMGR_JSON_ARG" ]; then
-            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSN umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR"
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR"
         else
-            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSN umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
+            set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/mnt; $diskhdr_cmd $DMGR_JSON umount 0 $DMGR_DST_PATH ${DMGR_TMP_DIR}/mnt; rm -rf $DMGR_TMP_DIR $DMGR_JSON"
         fi
     fi
 

@@ -47,16 +47,17 @@ if len(sys.argv) < 2 or str_is_help(sys.argv[1]):
     log_out(SYNOPSIS)
     sys.exit(0)
 else:
-    if str_is_help(sys.argv[2]):
+    if "--help" in sys.argv or "-help" in sys.argv or "-h" in sys.argv:
         log_out(SYNOPSIS)
         sys.exit(0)
-    elif "--help" in sys.argv or "-help" in sys.argv or "-h" in sys.argv:
-        log_out(SYNOPSIS)
-        sys.exit(0)
-    elif not sys.argv[2] in CMD_lIST:
-        log_out(SYNOPSIS)
-        die(1, "Unknown command %s" % sys.argv[2])
-        sys.exit(0)
+    if len(sys.argv) > 2:
+        if str_is_help(sys.argv[2]):
+            log_out(SYNOPSIS)
+            sys.exit(0)
+        elif not sys.argv[2] in CMD_lIST:
+            log_out(SYNOPSIS)
+            die(1, "Unknown command %s" % sys.argv[2])
+            sys.exit(0)
 
 class DiskHandlerException(Exception):
     def __init__(self, message):
@@ -99,10 +100,7 @@ def dkhr_check_disk_repr(disk_repr):
     if disk_repr["table"] == "msdos":
         if len(disk_repr["parts"]) > 4:
             raise DiskHandlerException("check disk: handle a maximum of 4 in msdos table (count:%d)"
-                                % len(disk_repr["parts"]))
-        # for part in disk_repr["parts"]:
-        #     if "partname" in part.keys():
-        #         log_err("check disk: msdos do not handle partition name")
+                                       % len(disk_repr["parts"]))
         for part in disk_repr["parts"]:
             if not "type" in part.keys():
                 DiskHandlerException("check part: the key 'type' missing")
@@ -410,6 +408,7 @@ elif command == "format":
             os.system("kpartx -d %s" % dst_path)
     else:
         mkfs_cmd = gen_mkfs_cmd(disks_list[0]["parts"], dst_path)
+        log_msg(mkfs_cmd)
         if os.system(mkfs_cmd) != 0:
             die(1, "Filesystems creation fail")
         create_mountpoints(system_repr_list[0], disks_list, [dst_path])
