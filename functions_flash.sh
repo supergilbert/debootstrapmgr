@@ -250,7 +250,7 @@ _echo_dir_ko_size ()
 
 _echo_dir_mo_size ()
 {
-    echo "$((($(_echo_dir_ko_size $1) / 1024) + 1024))"
+    echo "$((($(_echo_dir_ko_size $1) / 1024) + 1))"
 }
 
 _get_sys_min_size ()
@@ -270,6 +270,7 @@ _handle_flash_dest_copy_n_set_trap ()
     if [ "$DMGR_IMAGE_TYPE" = "ON" ]; then
         echo_notify "Generating image file in $DMGR_DST_PATH"
         DMGR_MIN_SIZE="$(($(_get_sys_min_size ${DMGR_TMP_DIR}/chroot) + $($diskhdr_cmd $DMGR_JSON minsize 0)))"
+        DMGR_MIN_SIZE="$(($DMGR_MIN_SIZE * 110 / 100))"
         if [ -z "$DMGR_IMG_SIZE" ]; then
             truncate -s ${DMGR_MIN_SIZE}M $DMGR_DST_PATH
         else
@@ -491,11 +492,6 @@ _rpi_chroot_flash ()
     unset_trap
 
     if [ -z "$DMGR_JSON"]; then
-        if [ -n "$DMGR_GPTTABLE" ]; then
-            PART_TABLE="gpt"
-        else
-            PART_TABLE="msdos"
-        fi
         DMGR_JSON="${DMGR_TMP_DIR}/diskhdr.json"
         echo "$DEFAULT_FSTAB_RPI_JSON" > $DMGR_JSON
     fi

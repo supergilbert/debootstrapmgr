@@ -685,28 +685,27 @@ _chroot_to_live_squashfs ()
         echo_die 1 "Destination already exist"
     fi
 
-    DMGR_TMPDIR="$(mktemp -d --suffix=_dmgr_tmpdir)"
+    DMGR_TMP_DIR="$(mktemp -d --suffix=_dmgr_tmp_dir)"
     DMGR_EXCLUSION_FILE="$(mktemp --suffix=_dmgr_exclusion)"
-    # set_trap "unset_chroot_operation $DMGR_TMPDIR; rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMPDIR"
-    set_trap "unset_chroot_operation $DMGR_TMPDIR; rm -rf $DMGR_TMPDIR"
+    set_trap "unset_chroot_operation $DMGR_TMP_DIR; rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMP_DIR"
 
     echo_notify "Copying chroot directory ..."
-    rsync -ad ${DMGR_SRC_PATH}/* ${DMGR_TMPDIR}/
+    rsync -ad ${DMGR_SRC_PATH}/* ${DMGR_TMP_DIR}/
     echo_notify "Copy done."
 
-    setup_chroot_operation $DMGR_TMPDIR
-    _chroot_add_pkg $DMGR_TMPDIR live-boot
+    setup_chroot_operation $DMGR_TMP_DIR
+    _chroot_add_pkg $DMGR_TMP_DIR live-boot
     _chroot_add_pkg ${DMGR_TMP_DIR} $DMGR_ADD_PKG_LIST
     _run_in_root_system ${DMGR_TMP_DIR} $DMGR_EXE_LIST
-    unset_chroot_operation $DMGR_TMPDIR
+    unset_chroot_operation $DMGR_TMP_DIR
 
     rm -rf ${DMGR_TMP_DIR}/boot
     for pers_path in $DMGR_PERSISTENCE_PATHS; do
         rm -rf ${DMGR_TMP_DIR}${pers_path}
     done
 
-    mksquashfs $DMGR_SRC_PATH $DMGR_DST_PATH
+    mksquashfs $DMGR_TMP_DIR $DMGR_DST_PATH
 
     unset_trap
-    rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMPDIR
+    rm -rf $DMGR_EXCLUSION_FILE $DMGR_TMP_DIR
 }
