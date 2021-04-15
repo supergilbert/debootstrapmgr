@@ -11,6 +11,6 @@ Rules-Requires-Root: no
 
 Package: debootstrapmgr
 Architecture: any
-Depends: ${misc:Depends}, binfmt-support, binutils, binutils-aarch64-linux-gnu, binutils-arm-linux-gnueabi, coreutils, debootstrap, dosfstools, e2fsprogs, kpartx, partclone, parted, python3, qemu-system-arm, qemu-user-static (>=1:5.0.4), rsync, squashfs-tools
+Depends: ${misc:Depends}, apt-utils, binfmt-support, binutils, binutils-aarch64-linux-gnu, binutils-arm-linux-gnueabi, coreutils, debootstrap, dosfstools, e2fsprogs, kpartx, partclone, parted, python3, qemu-system-arm, qemu-user-static (>=1:5.0.4), rsync, squashfs-tools
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>

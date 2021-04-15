@@ -123,6 +123,7 @@ OPTIONS:
   -d <DST>, --destination=<DST> Destination path
   -e <EXE>, --exec=<EXE>        Run executable into the new system
   -E, --efi                     Install grub-efi-amd64 instead of grub-pc
+  -i, --install-deb             Add debian file to install
   -j <JSON>, --json <JSON>      Specify a json filesystem architecture
   -g, --gpt                     Setup an \"GPT\" partition table
                                 instead of \"MSDOS\"
@@ -132,7 +133,7 @@ OPTIONS:
   -h, --help                    Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:Egj:hs:S:w:' -l 'add-package:,destination:,exec:,efi,gpt,json:,help,image-size:,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:Egj:hi:s:S:w:' -l 'add-package:,destination:,exec:,efi,gpt,json:,help,image-size:,install-deb:,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -160,6 +161,11 @@ OPTIONS:
                 shift
                 DMGR_GRUBEFI="on"
                 echo_notify "Setup system boot in UEFI mode"
+                ;;
+            '-i'|'--install-deb')
+                shift
+                DMGR_DEB_PKGS="$DMGR_DEB_PKGS $1"
+                shift
                 ;;
             '-j'|'--json')
                 shift
@@ -213,6 +219,10 @@ OPTIONS:
 
     if [ -n "$DMGR_EXE_LIST" ]; then
         check_exe_list $DMGR_EXE_LIST
+    fi
+
+    if [ -n "$DMGR_DEB_PKGS" ]; then
+        check_file_list $DMGR_DEB_PKGS
     fi
 
     if [ -z "$DMGR_SWAP_SIZE" ]; then
@@ -330,6 +340,7 @@ _pc_chroot_flash ()
     fi
 
     _chroot_add_pkg ${DMGR_TMP_DIR}/chroot $DMGR_ADD_PKG_LIST
+    _install_deb_pkg ${DMGR_TMP_DIR}/chroot $DMGR_DEB_PKGS
     _run_in_root_system ${DMGR_TMP_DIR}/chroot $DMGR_EXE_LIST
 
     unset_chroot_operation ${DMGR_TMP_DIR}/chroot
@@ -482,9 +493,10 @@ _rpi_chroot_flash ()
     rsync -ad ${DMGR_SRC_DIR}/* ${DMGR_TMP_DIR}/chroot
     echo_notify "Files copy done"
 
-    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_EXE_LIST" ]; then
+    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_DEB_PKGS" -o -n "$DMGR_EXE_LIST" ]; then
         setup_chroot_operation ${DMGR_TMP_DIR}/chroot
         _chroot_add_pkg ${DMGR_TMP_DIR}/chroot $DMGR_ADD_PKG_LIST
+        _install_deb_pkg ${DMGR_TMP_DIR}/chroot $DMGR_DEB_PKGS
         _run_in_root_system ${DMGR_TMP_DIR}/chroot $DMGR_EXE_LIST
         unset_chroot_operation ${DMGR_TMP_DIR}/chroot
     fi

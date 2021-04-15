@@ -21,6 +21,49 @@ _run_in_root_system ()
     fi
 }
 
+_install_deb_pkg ()
+{
+    if [ $# -gt 1 ]; then
+        local _CHROOT_DIR="$1"
+        shift
+
+        mkdir -p ${_CHROOT_DIR}/tmp/pkg_repo/pkg
+        cp "$@" ${_CHROOT_DIR}/tmp/pkg_repo/pkg
+        _PKG_LIST=""
+        for PKG in "$@"; do
+            _PKG_NAME="$(basename $PKG | cut -d_ -f1)"
+            _PKG_LIST="$_PKG_LIST $_PKG_NAME"
+        done
+        cd ${_CHROOT_DIR}/tmp/pkg_repo
+        apt-ftparchive packages pkg > pkg/Packages
+        cd -
+        DMGR_ARCHITECTURE="$(chroot $_CHROOT_DIR dpkg --print-architecture)"
+        echo "Archive: dmgrtmp\nArchitecture: $DMGR_ARCHITECTURE" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
+        echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${_CHROOT_DIR}/etc/apt/sources.list.d/dmgrtmp.list
+        find ${_CHROOT_DIR}/tmp/pkg_repo
+        chroot $_CHROOT_DIR apt update
+        echo_notify "Installing following packages: $_PKG_LIST"
+        chroot $_CHROOT_DIR apt --allow-unauthenticated -y install $_PKG_LIST
+
+        rm -rf ${_CHROOT_DIR}/tmp/pkg_repo ${_CHROOT_DIR}/etc/apt/sources.list.d/dmgrtmp.list
+    fi
+}
+
+check_file_list ()
+{
+    echo_notify "Checking executables"
+    if [ $# -ne 0 ]; then
+        for FILE in "$@"; do
+            if [ ! -f "$FILE" ]; then
+                echo_die 1 "$FILE does not exist"
+            fi
+        done
+    else
+        echo_die 1 "No file found."
+    fi
+    echo_notify "File list check done\n"
+}
+
 check_exe_list ()
 {
     echo_notify "Checking executables"
@@ -34,7 +77,7 @@ check_exe_list ()
     else
         echo_die 1 "No executables found."
     fi
-    echo_notify "Executables check done\n"
+    echo_notify "Executable list check done\n"
 }
 
 setup_chroot_mountpoint ()
@@ -125,6 +168,7 @@ OPTIONS:
                                      needed for boot)
   -H, --hostname                     Set the default hostname (otherwise
                                      hostname is chroot debi)
+  -i, --install-deb                  Add debian file to install
   -p, --password                     See the default root password (otherwise
                                      root password is root)
   -r <REPO_ADDR>, --repo <REPO_ADDR> Modify default repo addr (Unused on rpi generation)
@@ -132,7 +176,7 @@ OPTIONS:
   -h, --help                         Display this help
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:np:r:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,no-default-pkg,password:,repo:,sysv' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:C:d:D:e:hH:i:np:r:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,install-deb:,no-default-pkg,password:,repo:,sysv' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -173,6 +217,11 @@ OPTIONS:
             '-H'|'--hostname')
                 shift
                 DMGR_HOSTNAME="$1"
+                shift
+                ;;
+            '-i'|'--install-deb')
+                shift
+                DMGR_DEB_PKGS="$DMGR_DEB_PKGS $1"
                 shift
                 ;;
             '-n'|'--no-default-pkg')
@@ -220,6 +269,10 @@ OPTIONS:
 
     if [ -n "$DMGR_EXE_LIST" ]; then
         check_exe_list $DMGR_EXE_LIST
+    fi
+
+    if [ -n "$DMGR_DEB_PKGS" ]; then
+        check_file_list $DMGR_DEB_PKGS
     fi
 
     if [ -z "$DMGR_ROOT_PASSWORD" ]; then
@@ -311,6 +364,7 @@ EOF
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
     _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+    _install_deb_pkg $DMGR_CHROOT_DIR $DMGR_DEB_PKGS
     _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
@@ -415,6 +469,7 @@ EOF
     echo "root:${DMGR_ROOT_PASSWORD}" | chroot "$DMGR_CHROOT_DIR" /usr/sbin/chpasswd
 
     _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+    _install_deb_pkg $DMGR_CHROOT_DIR $DMGR_DEB_PKGS
     _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
     unset_chroot_operation "$DMGR_CHROOT_DIR"
@@ -496,11 +551,12 @@ OPTIONS:
         echo_die 1 "Need a destination directory"
     fi
 
-    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_ADD_PKG_LIST" ]; then
+    if [ -n "$DMGR_EXE_LIST" -o -n "$DMGR_DEB_PKGS" -o -n "$DMGR_ADD_PKG_LIST" ]; then
         set_trap "unset_chroot_operation $DMGR_CHROOT_DIR"
         setup_chroot_operation "$DMGR_CHROOT_DIR"
 
         _chroot_add_pkg $DMGR_CHROOT_DIR $DMGR_ADD_PKG_LIST
+        _install_deb_pkg $DMGR_CHROOT_DIR $DMGR_DEB_PKGS
         _run_in_root_system $DMGR_CHROOT_DIR $DMGR_EXE_LIST
 
         unset_chroot_operation "$DMGR_CHROOT_DIR"
@@ -588,9 +644,10 @@ EOF
         done
     fi
 
-    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_EXE_LIST" ]; then
+    if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_DEB_PKGS" -o -n "$DMGR_EXE_LIST" ]; then
         setup_chroot_operation ${2}/tmpdir
         _chroot_add_pkg ${2}/tmpdir $DMGR_ADD_PKG_LIST
+        _install_deb_pkg $DMGR_CHROOT_DIR $DMGR_DEB_PKGS
         _run_in_root_system ${2}/tmpdir $DMGR_EXE_LIST
         unset_chroot_operation ${2}/tmpdir
     fi
@@ -613,11 +670,12 @@ OPTIONS:
   -d <DST>, --destination <DST> Destination path
   -e <EXE>, --exec=<EXE>        Run executable into the new system
   -h, --help                    Display this help
+  -i, --install-deb                  Add debian file to install
   -s <SRC>, --source=<SRC>      Source chroot directory
   -p, --add-persistence=PATH    Add persistency on specified path
 "
 
-    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hp:s:' -l 'add-package:,destination:,exec:,help,source:,add-persistence:' -- "$@")
+    OPTS=$(getopt -n "$DMGR_CMD_NAME" -o 'a:d:e:hi:p:s:' -l 'add-package:,destination:,exec:,help,install-deb:,source:,add-persistence:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -644,6 +702,11 @@ OPTIONS:
             '-h'|'--help')
                 echo "$DMGR_LIVESYS_SYNOPSIS"
                 exit 0
+                ;;
+            '-i'|'--install-deb')
+                shift
+                DMGR_DEB_PKGS="$DMGR_DEB_PKGS $1"
+                shift
                 ;;
             '-p'|'--add-persistence')
                 shift
@@ -695,8 +758,9 @@ _chroot_to_live_squashfs ()
 
     setup_chroot_operation $DMGR_TMP_DIR
     _chroot_add_pkg $DMGR_TMP_DIR live-boot
-    _chroot_add_pkg ${DMGR_TMP_DIR} $DMGR_ADD_PKG_LIST
-    _run_in_root_system ${DMGR_TMP_DIR} $DMGR_EXE_LIST
+    _chroot_add_pkg $DMGR_TMP_DIR $DMGR_ADD_PKG_LIST
+    _install_deb_pkg $DMGR_TMP_DIR $DMGR_DEB_PKGS
+    _run_in_root_system $DMGR_TMP_DIR $DMGR_EXE_LIST
     unset_chroot_operation $DMGR_TMP_DIR
 
     rm -rf ${DMGR_TMP_DIR}/boot
