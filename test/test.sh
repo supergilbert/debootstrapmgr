@@ -108,7 +108,7 @@ cat <<EOF > $EXPECT_SCRIPT
 
 set timeout 1800
 
-spawn kvm -m 2G -serial stdio -drive format=raw,file=${CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img
+spawn kvm -m 2G -nographic -drive format=raw,file=${CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img
 
 expect -re "DMGR_ERROR" { exit 1 }
 EOF
