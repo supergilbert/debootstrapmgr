@@ -66,6 +66,8 @@ rm -f /tmp/test.img
 
 debootstrapmgr pc-chroot-flash -s ${CHROOT_PATH} -d /dev/sdb
 
+trap - INT TERM EXIT
+
 poweroff
 EOF
     chmod +x ${CHROOT_PATH}${TEST_SCRIPT}
@@ -118,6 +120,8 @@ chmod +x $EXPECT_SCRIPT
 trap "rm -f ${CHROOT_PATH}.img /tmp/dmgr_test_disk2.img" INT TERM EXIT
 
 $EXPECT_SCRIPT
+
+trap - INT TERM EXIT
 
 # # kvm -m 2G -nographic -drive format=raw,file=${CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img
 # kvm -m 2G -serial stdio -drive format=raw,file=${CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img
