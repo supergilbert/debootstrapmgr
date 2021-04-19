@@ -32,6 +32,7 @@ jobs:
         run: debuild -b -us -uc
 
       - name: Install package
+        continue-on-error: true
         run: |
           sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
           sudo apt -y install
