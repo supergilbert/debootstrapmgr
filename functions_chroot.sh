@@ -40,7 +40,6 @@ _install_deb_pkg ()
         DMGR_ARCHITECTURE="$(chroot $_CHROOT_DIR dpkg --print-architecture)"
         echo "Archive: dmgrtmp\nArchitecture: $DMGR_ARCHITECTURE" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
         echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${_CHROOT_DIR}/etc/apt/sources.list.d/dmgrtmp.list
-        find ${_CHROOT_DIR}/tmp/pkg_repo
         chroot $_CHROOT_DIR apt update
         echo_notify "Installing following packages: $_PKG_LIST"
         chroot $_CHROOT_DIR apt --allow-unauthenticated -y install $_PKG_LIST
