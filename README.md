@@ -16,7 +16,7 @@ Run on amd64 architecture.
 
 ### Package needed
 
-binfmt-support coreutils debootstrap dosfstools e2fsprogs kpartx partclone parted qemu-system-arm qemu-user-static
+binfmt-support coreutils debootstrap dosfstools e2fsprogs kpartx parted qemu-system-arm qemu-user-static
 
 ### Package suggested
 
