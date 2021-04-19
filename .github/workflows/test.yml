@@ -28,16 +28,20 @@ jobs:
       - name: Install devscripts
         run: |
           sudo apt update
-          sudo apt -y install devscripts debhelper
+          sudo apt -y install devscripts debhelper expect
 
       - name: Test build debian package
         run: debuild -b -us -uc
 
-      - name: Install package (stage 1)
-        continue-on-error: true
-        run: sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
+      - name: Generate package file repository
+        run: |
+          mkdir -p ${{env.working-directory}}/repo/pkg
+          cp ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb ${{env.working-directory}}/repo/pkg
+          echo "Archive: dmgrtmprepo\nArchitecture: $(dpkg --print-architecture)" > ${{env.working-directory}}/repo/pkg/Release
+          echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${{env.working-directory}}/etc/apt/sources.list.d/dmgrtmp.list
+          apt update
 
-      - name: Install package (stage 2)
+      - name: Install package
         run: sudo apt -f -y install
         env:
           DEBIAN_FRONTEND: noninteractive
