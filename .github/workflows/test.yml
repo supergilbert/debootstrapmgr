@@ -33,7 +33,7 @@ jobs:
 
       - name: Install package
         run: |
-          dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_$(dpkg --print-architecture).deb
+          dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb
           apt -y install
         env:
           DEBIAN_FRONTEND: noninteractive
