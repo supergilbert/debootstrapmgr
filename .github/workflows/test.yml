@@ -31,11 +31,12 @@ jobs:
       - name: Test build debian package
         run: debuild -b -us -uc
 
-      - name: Install package
+      - name: Install package (stage 1)
         continue-on-error: true
-        run: |
-          sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
-          sudo apt -y install
+        run: sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
+
+      - name: Install package (stage 2)
+        run: sudo apt -y install
         env:
           DEBIAN_FRONTEND: noninteractive
 
