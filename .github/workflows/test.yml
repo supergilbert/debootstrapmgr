@@ -33,13 +33,13 @@ jobs:
 
       - name: Install package
         run: |
-          dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb
-          apt -y install
+          sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
+          sudo apt -y install
         env:
           DEBIAN_FRONTEND: noninteractive
 
       - name: Generate chroot
-        run: debootstrapmgr pc-debootstrap -d ./test_chroot
+        run: sudo debootstrapmgr pc-debootstrap -d ./test_chroot
 
       - name: Generate image
-        run: debootstrapmgr pc-chroot-flash -s ./test_chroot -d ./test_chroot.img
+        run: sudo debootstrapmgr pc-chroot-flash -s ./test_chroot -d ./test_chroot.img
