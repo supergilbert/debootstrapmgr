@@ -36,7 +36,7 @@ jobs:
         run: sudo dpkg -i ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb || true
 
       - name: Install package (stage 2)
-        run: sudo apt -y install
+        run: sudo apt -f -y install
         env:
           DEBIAN_FRONTEND: noninteractive
 
