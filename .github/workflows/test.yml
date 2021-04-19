@@ -33,21 +33,21 @@ jobs:
       - name: Test build debian package
         run: debuild -b -us -uc
 
-      - name: Generate package file repository
-        run: |
-          mkdir -p ${{env.working-directory}}/repo/pkg
-          cp ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb ${{env.working-directory}}/repo/pkg
-          echo "Archive: dmgrtmprepo\nArchitecture: $(dpkg --print-architecture)" > ${{env.working-directory}}/repo/pkg/Release
-          echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${{env.working-directory}}/etc/apt/sources.list.d/dmgrtmp.list
-          apt update
+      # - name: Generate package file repository
+      #   run: |
+      #     mkdir -p ${{env.working-directory}}/repo/pkg
+      #     cp ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb ${{env.working-directory}}/repo/pkg
+      #     echo "Archive: dmgrtmprepo\nArchitecture: $(dpkg --print-architecture)" > ${{env.working-directory}}/repo/pkg/Release
+      #     echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${{env.working-directory}}/etc/apt/sources.list.d/dmgrtmp.list
+      #     apt update
 
-      - name: Install package
-        run: sudo apt -f -y install
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      # - name: Install package
+      #   run: sudo apt -f -y install
+      #   env:
+      #     DEBIAN_FRONTEND: noninteractive
 
-      - name: Generate chroot
-        run: sudo debootstrapmgr pc-debootstrap -d ./test_chroot
+      # - name: Generate chroot
+      #   run: sudo ./debootstrapmgr.sh pc-debootstrap -d ./test_chroot
 
-      - name: Generate image
-        run: sudo debootstrapmgr pc-chroot-flash -s ./test_chroot -d ./test_chroot.img
+      # - name: Generate image
+      #   run: sudo ./debootstrapmgr.sh pc-chroot-flash -s ./test_chroot -d ./test_chroot.img
