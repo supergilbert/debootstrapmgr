@@ -2,7 +2,8 @@ Source: debootstrapmgr
 Section: unknown
 Priority: optional
 Maintainer: gilbr <gilbr@phenom>
-Build-Depends: debhelper (>= 9), expect
+Build-Depends: debhelper (>= 9)
+Suggests: expect
 Standards-Version: 4.5.1
 Homepage: <insert the upstream URL, if relevant>
 #Vcs-Browser: https://salsa.debian.org/debian/debootstrapmgr
