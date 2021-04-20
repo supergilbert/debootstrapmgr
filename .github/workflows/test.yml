@@ -28,7 +28,11 @@ jobs:
       - name: Install test pre-dependencies
         run: |
           sudo apt update
+          sudo apt -y upgrade
           sudo apt -y install devscripts debhelper expect
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
 
       - name: Run minimal package test
         run: sudo ./test/github_action_test.sh

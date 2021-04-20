@@ -1,5 +1,7 @@
 #!/bin/sh -ex
 
+cp -R ubuntu_20.04 debian
+
 debuild -b -us -uc
 
 mkdir -p /tmp/repo/pkg
