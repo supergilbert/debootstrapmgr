@@ -9,6 +9,8 @@ export DMGR_DEBUG=ON
 
 SRCDIR=$(realpath $(dirname $0)/..)
 
+cp -r ${SRCDIR}/debian_bullseye ${SRCDIR}/debian
+
 cd $SRCDIR
 debuild -b -us -uc
 cd -

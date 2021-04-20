@@ -174,7 +174,7 @@ OPTIONS:
                 ;;
             '-s'|'--source')
                 shift
-                DMGR_SRC_DIR="$1"
+                DMGR_SRC_PATH="$1"
                 shift
                 ;;
             '-S'|'--size')
@@ -212,9 +212,11 @@ OPTIONS:
         echo_die 1 "Destination is mandatory"
     fi
 
-    if [ ! -d "$DMGR_SRC_DIR" ]; then
-        echo "$DMGR_PC_FLASHIMG_SYNOPSIS"
-        echo_die 1 "$DMGR_SRC_DIR chroot source directory does not exist"
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        if [ ! -d "$DMGR_SRC_PATH" ]; then
+            echo "$DMGR_PC_FLASHIMG_SYNOPSIS"
+            echo_die 1 "$DMGR_SRC_PATH chroot source is not a directory"
+        fi
     fi
 
     if [ -n "$DMGR_EXE_LIST" ]; then
@@ -319,14 +321,19 @@ _pc_chroot_flash ()
     _handle_flash_args "$@"
 
     DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
-    mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
 
     set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/chroot; rm -rf $DMGR_TMP_DIR"
 
-    # TODO if no src generate default chroot
-    echo_notify "Copying files ..."
-    rsync -ad ${DMGR_SRC_DIR}/* ${DMGR_TMP_DIR}/chroot
-    echo_notify "Files copy done"
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
+        echo_notify "Copying files ..."
+        rsync -ad ${DMGR_SRC_PATH}/* ${DMGR_TMP_DIR}/chroot
+        echo_notify "Files copy done"
+    else
+        mkdir ${DMGR_TMP_DIR}/mnt
+        echo_notify "No source chroot provided generating a default one"
+        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
+    fi
 
     # chroot installations
     setup_chroot_operation ${DMGR_TMP_DIR}/chroot
@@ -446,7 +453,13 @@ _pc_chroot_flashlive ()
     mkdir ${DMGR_TMP_DIR}/live ${DMGR_TMP_DIR}/mnt
 
     # nb: _chroot_to_livesys_dir use set_trap
-    _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
+    else
+        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        _chroot_to_livesys_dir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/live
+        rm -rf ${DMGR_TMP_DIR}/chroot
+    fi
 
     diskhdr_cmd="${DMGR_CURRENT_DIR}/diskhdr.py"
 
@@ -484,14 +497,19 @@ _rpi_chroot_flash ()
     _handle_flash_args "$@"
 
     DMGR_TMP_DIR="$(mktemp -d --suffix=_dbr_img_tmp_dir)"
-    mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
 
     set_trap "unset_chroot_operation ${DMGR_TMP_DIR}/chroot; rm -rf $DMGR_TMP_DIR"
 
-    # TODO if no src generate default chroot
-    echo_notify "Copying files ..."
-    rsync -ad ${DMGR_SRC_DIR}/* ${DMGR_TMP_DIR}/chroot
-    echo_notify "Files copy done"
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        mkdir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/mnt
+        echo_notify "Copying files ..."
+        rsync -ad ${DMGR_SRC_PATH}/* ${DMGR_TMP_DIR}/chroot
+        echo_notify "Files copy done"
+    else
+        mkdir ${DMGR_TMP_DIR}/mnt
+        echo_notify "No source chroot provided generating a default one"
+        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
+    fi
 
     if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_DEB_PKGS" -o -n "$DMGR_EXE_LIST" ]; then
         setup_chroot_operation ${DMGR_TMP_DIR}/chroot
@@ -523,16 +541,22 @@ _rpi_chroot_flash ()
 
 _rpi_chroot_flashlive ()
 {
-    _handle_dir_to_livesys_args "$@"
-
     DMGR_TYPE="RPI"
+    _handle_dir_to_livesys_args "$@"
 
     echo_notify "Generating live system"
     DMGR_TMP_DIR="$(mktemp -d --suffix=_dmgr_livesys_dir)"
     mkdir ${DMGR_TMP_DIR}/live ${DMGR_TMP_DIR}/mnt
 
     # nb: _chroot_to_livesys_dir use set_trap
-    _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
+    else
+        mkdir ${DMGR_TMP_DIR}/chroot
+        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        _chroot_to_livesys_dir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/live
+        rm -rf ${DMGR_TMP_DIR}/chroot
+    fi
 
     diskhdr_cmd="${DMGR_CURRENT_DIR}/diskhdr.py"
 

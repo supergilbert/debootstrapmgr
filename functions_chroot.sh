@@ -733,9 +733,11 @@ OPTIONS:
         echo_die 1 "Destination is mandatory"
     fi
 
-    if [ ! -d "$DMGR_SRC_PATH" ]; then
-        echo "$DMGR_LIVESYS_SYNOPSIS"
-        echo_die 1 "$DMGR_SRC_PATH chroot source directory does not exist"
+    if [ -n "$DMGR_SRC_PATH" ]; then
+        if [ ! -d "$DMGR_SRC_PATH" ]; then
+            echo "$DMGR_LIVESYS_SYNOPSIS"
+            echo_die 1 "$DMGR_SRC_PATH chroot source is not a directory"
+        fi
     fi
 }
 
