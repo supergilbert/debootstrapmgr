@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/sh -ex
+
+debuild -b -us -uc
 
 mkdir -p /tmp/repo/pkg
 
