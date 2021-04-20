@@ -24,7 +24,7 @@ qemu-system-x86
 
 ## DEBOOTSTRAPMGR SYNOPSIS
 
-    usage: debootstrapmgr.sh <command> [<args>]
+    usage: debootstrapmgr-git <command> [<args>]
 
     A tool to flash, generate or prepare debian chroot for RPI and PC architecture.
 
@@ -40,19 +40,22 @@ qemu-system-x86
       chroot-exec     Exec command in a chroot disabling its service start
       chroot          Run chroot (in the specified directory) and disabling its
                       service start
-      mklive-squashfs Generate a live squashfs file
+      mklive-squashfs Generate a live system squashfs file
 
-    Flash commands (/!\ caution in what you are flashing)
+    Dump commands
+     Output default json disk architecture
 
-      pc-chroot-flash       Flash a pc chroot to an raw image file
-      pc-chroot-flash-live  Flash a pc chroot to a live system (block device
-                            or file image)
-      rpi-chroot-flash      Flash a rpi chroot to an raw image file
-      rpi-chroot-flash-live Flash a rpi chroot to a live system (block device
-                            or file image)
       dump-default-pc-json
       dump-default-rpi-json
       dump-default-live-json
+
+    Flash commands (/!\ caution in what you are flashing)
+      All flash command can be done on a block device or file a image
+
+      pc-flash
+      pc-flash-live
+      rpi-flash
+      rpi-flash-live
 
 ## TODO
 

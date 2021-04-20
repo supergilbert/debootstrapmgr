@@ -316,7 +316,7 @@ _handle_flash_dest_copy_n_set_trap ()
     rm -rf ${DMGR_TMP_DIR}/chroot
 }
 
-_pc_chroot_flash ()
+_flash_pc ()
 {
     _handle_flash_args "$@"
 
@@ -444,7 +444,7 @@ _handle_flashlive_block_or_file ()
     fi
 }
 
-_pc_chroot_flashlive ()
+_flash_pc_live ()
 {
     _handle_dir_to_livesys_args "$@"
 
@@ -492,7 +492,7 @@ EOF
 
 # RPI Part
 
-_rpi_chroot_flash ()
+_flash_rpi ()
 {
     _handle_flash_args "$@"
 
@@ -539,7 +539,7 @@ _rpi_chroot_flash ()
     unset_trap
 }
 
-_rpi_chroot_flashlive ()
+_flash_rpi_live ()
 {
     DMGR_TYPE="RPI"
     _handle_dir_to_livesys_args "$@"

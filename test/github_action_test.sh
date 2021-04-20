@@ -22,10 +22,6 @@ apt install debootstrapmgr
 
 debootstrapmgr pc-debootstrap -d ./test_chroot
 
-debootstrapmgr pc-chroot-flash -s ./test_chroot -d ./test_chroot.img
+debootstrapmgr pc-flash -s ./test_chroot -d ./test_chroot.img
 
-rm -rf ./test_chroot ./test_chroot.img
-
-debootstrapmgr rpi-debootstrap -d ./test_chroot
-
-debootstrapmgr rpi-chroot-flash -s ./test_chroot -d ./test_chroot.img
+# TODO small test with kvm
