@@ -1,5 +1,11 @@
 #!/bin/sh -ex
 
+apt update
+
+apt -y upgrade
+
+apt -y install devscripts debhelper expect
+
 cp -R ubuntu_20.04 debian
 
 debuild -b -us -uc
