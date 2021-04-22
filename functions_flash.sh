@@ -401,7 +401,7 @@ EOF
 
         echo_notify "Installing grub"
         chroot ${DMGR_TMP_DIR}/mnt grub-install --force --target=i386-pc $DMGR_BLKDEV || true
-        chroot ${DMGR_TMP_DIR}/mnt grub-mkconfig -o /boot/grub/grub.cfg || true
+        chroot ${DMGR_TMP_DIR}/mnt grub-mkconfig > ${DMGR_TMP_DIR}/mnt/boot/grub/grub.cfg || true
         echo_notify "grub installed"
     fi
 

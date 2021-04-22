@@ -65,9 +65,11 @@ trap "rm -f ${TEST_CHROOT_PATH}.img /tmp/dmgr_test_disk2.img /tmp/dmgr_test_disk
 truncate -s 5G /tmp/dmgr_test_disk2.img
 truncate -s 5G /tmp/dmgr_test_disk3.img
 
-
-DMGR_KVM_OPTION="-nographic"
-# DMGR_KVM_OPTION="-serial stdio"
+if [ "$1" = "-g" -o "$1" = "--graphic" ]; then
+    DMGR_KVM_OPTION="-serial stdio"
+else
+    DMGR_KVM_OPTION="-nographic"
+fi
 
 # Generate new images into kvm (with scenario_create_systems.sh)
 cat <<EOF > /tmp/dmgr_expect_test.sh
