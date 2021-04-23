@@ -25,14 +25,5 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: Install test pre-dependencies
-        run: |
-          sudo apt update
-          sudo apt -y upgrade
-          sudo apt -y install devscripts debhelper expect
-        env:
-          DEBIAN_FRONTEND: noninteractive
-
-
       - name: Run minimal package test
         run: sudo ./test/github_action_test.sh

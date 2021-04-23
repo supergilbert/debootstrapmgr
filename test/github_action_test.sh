@@ -1,11 +1,14 @@
 #!/bin/sh -ex
 
+export DEBIAN_FRONTEND="noninteractive"
+
 apt update
 
 apt -y upgrade
 
-apt -y install devscripts debhelper expect
+apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
+rm -rf debian
 cp -R ubuntu_20.04 debian
 
 debuild -b -us -uc
@@ -24,10 +27,10 @@ echo "deb [trusted=yes] file:///tmp/repo/ pkg/" > /etc/apt/sources.list.d/dmgrtm
 
 apt update
 
-apt install debootstrapmgr
+apt -y install debootstrapmgr
 
 debootstrapmgr pc-debootstrap -d ./test_chroot
 
 debootstrapmgr pc-flash -s ./test_chroot -d ./test_chroot.img
 
-# TODO small test with kvm
+#kvm -m 1G -nographic -drive format=raw,file=./test_chroot.img

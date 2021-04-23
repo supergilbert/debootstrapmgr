@@ -24,7 +24,7 @@ qemu-system-x86
 
 ## DEBOOTSTRAPMGR SYNOPSIS
 
-    usage: debootstrapmgr-git <command> [<args>]
+    usage: debootstrapmgr <command> [<args>]
 
     A tool to flash, generate or prepare debian chroot for RPI and PC architecture.
 
@@ -43,7 +43,7 @@ qemu-system-x86
       mklive-squashfs Generate a live system squashfs file
 
     Dump commands
-     Output default json disk architecture
+      Output default json disk architecture
 
       dump-default-pc-json
       dump-default-rpi-json
