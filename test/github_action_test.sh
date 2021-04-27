@@ -8,8 +8,7 @@ apt -y upgrade
 
 apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
-rm -rf debian
-cp -R ubuntu_20.04 debian
+cp debian/no_qemu_version_control debian/control
 
 debuild -b -us -uc
 

@@ -56,7 +56,3 @@ qemu-system-x86
       pc-flash-live
       rpi-flash
       rpi-flash-live
-
-## TODO
-
-A flash tool that generate fstab partition and bootload from a file format and chroot directory.
