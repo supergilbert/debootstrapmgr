@@ -9,12 +9,12 @@ export DMGR_DEBUG=ON
 
 SRCDIR=$(realpath $(dirname $0)/..)
 
-cp -r ${SRCDIR}/debian_bullseye ${SRCDIR}/debian
+cp debian/no_qemu_version_control debian/control
 
 cd $SRCDIR
 debuild -b -us -uc
 cd -
-PKGPATH=${SRCDIR}/../debootstrapmgr_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_$(dpkg --print-architecture).deb
+PKGPATH=${SRCDIR}/../debian-generator_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_$(dpkg --print-architecture).deb
 
 
 TEST_CHROOT_PATH="/tmp/dmgr_test_chroot"
@@ -24,14 +24,14 @@ TEST_SCRIPT="/root/dmgr_test.sh"
 if [ ! -d ${TEST_CHROOT_PATH} ]; then
 
     # need qemu-user-static >= 1:5.0.4 to run rpi emulation with "raspi-copy-n-..." package installed (bullseye dist do the hack)
-    debootstrapmgr pc-debootstrap -d $TEST_CHROOT_PATH -r phenom:3142/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils
+    debgen pc-debootstrap -d $TEST_CHROOT_PATH -r phenom:3142/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc
     cp ${SRCDIR}/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
     cp ${SRCDIR}/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
 
     mkdir -p ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d
     cat <<EOF > ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d/override.conf
 [Unit]
-Description=Test debootstrapmgr
+Description=Test debian-generator
 
 [Service]
 Restart=no
@@ -42,7 +42,7 @@ RemainAfterExit=no
 StandardInput=tty
 StandardOutput=tty
 EOF
-    debootstrapmgr chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
+    debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
 
 else
     cp ${SRCDIR}/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
@@ -56,7 +56,7 @@ echo "GRUB_TIMEOUT=0" > /etc/default/grub.d/dmgrtest.cfg
 EOF
 chmod +x /tmp/dmgr_test_grubcfg.sh
 
-debootstrapmgr pc-flash -S 10 -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img -i $PKGPATH -e /tmp/dmgr_test_grubcfg.sh
+debgen pc-flash -S 10 -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img -i $PKGPATH -e /tmp/dmgr_test_grubcfg.sh
 
 rm /tmp/dmgr_test_grubcfg.sh
 
@@ -79,7 +79,10 @@ set timeout 1800
 
 spawn kvm -m 2G $DMGR_KVM_OPTION -drive format=raw,file=${TEST_CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img -drive format=raw,file=/tmp/dmgr_test_disk3.img
 
-expect "DMGR_ERROR" { exit 1 }
+expect {
+ "DMGR_ERROR" { exit 1 }
+ timeout { exit 1 }
+}
 EOF
 chmod +x /tmp/dmgr_expect_test.sh
 
@@ -96,7 +99,10 @@ set timeout 300
 
 spawn kvm -m 2G $DMGR_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk3.img
 
-expect "DMGR OK" { exit 0 }
+expect {
+ "DMGR OK" { exit 0 }
+ timeout { exit 1 }
+}
 EOF
 chmod +x /tmp/dmgr_expect_test.sh
 

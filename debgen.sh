@@ -19,7 +19,7 @@ if [ -z "$DMGR_NAME" ]; then
 fi
 
 DMGR_SYNOPSIS="\
-usage: $DMGR_NAME <command> [<args>]
+usage: debgen <command> [<args>]
 
 A tool to flash, generate or prepare debian chroot for RPI and PC architecture.
 

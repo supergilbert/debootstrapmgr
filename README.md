@@ -1,4 +1,4 @@
-# DEBOOTSTRAPMGR
+# DEBIAN-GENERATOR
 
 ## /!\ Caution use this software at your own risk
 
@@ -6,7 +6,7 @@
   * It can erase all your device data
     * It may not be fully tested
 
-debootstrapmgr is licensed under the MIT License, see [LICENSE.txt](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) for more information.
+debian-generator is licensed under the MIT License, see [LICENSE.txt](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) for more information.
 
 (This software is used to facilitate the creation of bootable Debian system)
 
@@ -22,9 +22,9 @@ binfmt-support coreutils debootstrap dosfstools e2fsprogs kpartx parted qemu-sys
 
 qemu-system-x86
 
-## DEBOOTSTRAPMGR SYNOPSIS
+## DEBGEN SYNOPSIS
 
-    usage: debootstrapmgr <command> [<args>]
+    usage: debgen <command> [<args>]
 
     A tool to flash, generate or prepare debian chroot for RPI and PC architecture.
 

@@ -1,7 +1,0 @@
-debootstrapmgr.sh usr/lib/debootstrapmgr
-diskhdr.py usr/lib/debootstrapmgr
-functions.sh usr/lib/debootstrapmgr
-functions_chroot.sh usr/lib/debootstrapmgr
-functions_flash.sh usr/lib/debootstrapmgr
-wrapper/debootstrapmgr usr/bin
-wrapper/diskhdr usr/sbin

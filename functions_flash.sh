@@ -332,7 +332,7 @@ _flash_pc ()
     else
         mkdir ${DMGR_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
-        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        ${DMGR_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
     fi
 
     # chroot installations
@@ -456,7 +456,7 @@ _flash_pc_live ()
     if [ -n "$DMGR_SRC_PATH" ]; then
         _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
     else
-        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        ${DMGR_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DMGR_TMP_DIR}/chroot
         _chroot_to_livesys_dir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/live
         rm -rf ${DMGR_TMP_DIR}/chroot
     fi
@@ -508,7 +508,7 @@ _flash_rpi ()
     else
         mkdir ${DMGR_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
-        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        ${DMGR_CURRENT_DIR}/debgen.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
     fi
 
     if [ -n "$DMGR_ADD_PKG_LIST" -o -n "$DMGR_DEB_PKGS" -o -n "$DMGR_EXE_LIST" ]; then
@@ -553,7 +553,7 @@ _flash_rpi_live ()
         _chroot_to_livesys_dir $DMGR_SRC_PATH ${DMGR_TMP_DIR}/live
     else
         mkdir ${DMGR_TMP_DIR}/chroot
-        ${DMGR_CURRENT_DIR}/debootstrapmgr.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
+        ${DMGR_CURRENT_DIR}/debgen.sh rpi-debootstrap -d ${DMGR_TMP_DIR}/chroot
         _chroot_to_livesys_dir ${DMGR_TMP_DIR}/chroot ${DMGR_TMP_DIR}/live
         rm -rf ${DMGR_TMP_DIR}/chroot
     fi

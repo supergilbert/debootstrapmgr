@@ -17,7 +17,7 @@ add_ttyS0_service ()
     mkdir -p ${1}/etc/systemd/system/getty@ttyS0.service.d
     cat <<EOF > ${1}/etc/systemd/system/getty@ttyS0.service.d/override.conf
 [Unit]
-Description=Test debootstrapmgr
+Description=Test debian-generator
 
 [Service]
 Restart=no
@@ -28,36 +28,36 @@ RemainAfterExit=no
 StandardInput=tty
 StandardOutput=tty
 EOF
-    debootstrapmgr chroot $1 systemctl enable getty@ttyS0.service
+    debgen chroot $1 systemctl enable getty@ttyS0.service
 }
 
-debootstrapmgr rpi-debootstrap -C phenom:3142 -d ${TEST_CHROOT_PATH}
+debgen rpi-debootstrap -C phenom:3142 -d ${TEST_CHROOT_PATH}
 cp /root/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH
 
-debootstrapmgr mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
 
-debootstrapmgr rpi-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen rpi-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
 
-debootstrapmgr rpi-flash -s ${TEST_CHROOT_PATH} -d /dev/sdb
+debgen rpi-flash -s ${TEST_CHROOT_PATH} -d /dev/sdb
 
 
 rm -rf ${TEST_CHROOT_PATH}
 
 
-debootstrapmgr pc-debootstrap -d ${TEST_CHROOT_PATH} -r phenom:3142/ftp.free.fr/debian
+debgen pc-debootstrap -d ${TEST_CHROOT_PATH} -r phenom:3142/ftp.free.fr/debian
 cp /root/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH
 
-debootstrapmgr mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
 
-debootstrapmgr pc-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen pc-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
 
-debootstrapmgr pc-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdc
+debgen pc-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdc
 
 trap - INT TERM EXIT
 

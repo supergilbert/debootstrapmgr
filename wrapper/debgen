@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DMGR_DEBOOTSTRAP="/usr/lib/debootstrapmgr/debootstrapmgr.sh"
+DMGR_DEBOOTSTRAP="/usr/lib/debgen/debgen.sh"
 
 if [ "$(id -u)" != 0 ]; then
     sudo --preserve-env $DMGR_DEBOOTSTRAP "$@"

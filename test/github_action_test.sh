@@ -14,7 +14,7 @@ debuild -b -us -uc
 
 mkdir -p /tmp/repo/pkg
 
-cp ../debootstrapmgr_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb /tmp/repo/pkg
+cp ../debian-generator_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb /tmp/repo/pkg
 
 cd /tmp/repo
 apt-ftparchive packages pkg > pkg/Packages
@@ -26,11 +26,11 @@ echo "deb [trusted=yes] file:///tmp/repo/ pkg/" > /etc/apt/sources.list.d/dmgrtm
 
 apt update
 
-apt -y install debootstrapmgr
+apt -y install debian-generator
 
 TEST_CHROOT_PATH=./test_chroot
 
-debootstrapmgr pc-debootstrap -d $TEST_CHROOT_PATH
+debgen pc-debootstrap -d $TEST_CHROOT_PATH
 
 cat <<EOF > ${TEST_CHROOT_PATH}/root//run_test.sh
 #!/bin/sh
@@ -42,7 +42,7 @@ chmod +x ${TEST_CHROOT_PATH}/root//run_test.sh
 mkdir -p ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d
 cat <<EOF > ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d/override.conf
 [Unit]
-Description=Test debootstrapmgr
+Description=Test debian-generator
 
 [Service]
 Restart=no
@@ -53,10 +53,10 @@ RemainAfterExit=no
 StandardInput=tty
 StandardOutput=tty
 EOF
-debootstrapmgr chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
+debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
 
 
-debootstrapmgr pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
+debgen pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
 
 cat <<EOF > /tmp/dmgr_expect_test
 #!/usr/bin/expect -f

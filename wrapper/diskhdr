@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DMGR_DISKHDR="/usr/lib/debootstrapmgr/diskhdr.py"
+DMGR_DISKHDR="/usr/lib/debgen/diskhdr.py"
 
 if [ "$(id -u)" != 0 ]; then
     sudo --preserve-env $DMGR_DISKHDR "$@"
