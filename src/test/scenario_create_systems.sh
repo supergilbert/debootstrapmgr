@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-trap "echo '\nDMGR_ERROR\n'" INT TERM EXIT
+trap "echo '\nDEBG_ERROR\n'" INT TERM EXIT
 
 dhclient ens3
 
@@ -10,7 +10,7 @@ apt update
 
 TEST_CHROOT_PATH="/tmp/dmgr_test_chroot"
 
-export DMGR_DEBUG=ON
+export DEBG_DEBUG=ON
 
 add_ttyS0_service ()
 {

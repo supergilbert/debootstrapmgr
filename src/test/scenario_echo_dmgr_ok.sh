@@ -2,4 +2,4 @@
 
 echo "test script reached"
 
-echo "DMGR OK"
+echo "DEBG OK"

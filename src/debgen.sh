@@ -2,23 +2,23 @@
 
 set -e
 
-if [ -n "$DEBUG_DMGR" -o -n "$DMGR_DEBUG" ]; then
+if [ -n "$DEBUG_DEBG" -o -n "$DEBG_DEBUG" ]; then
     set -x
 fi
 
-DMGR_CURRENT_DIR=$(dirname $(realpath $0))
+DEBG_CURRENT_DIR=$(dirname $(realpath $0))
 
-. ${DMGR_CURRENT_DIR}/functions.sh
+. ${DEBG_CURRENT_DIR}/functions.sh
 
 if [ "$(id -u)" != "0" ]; then
     echo_die 1 "Need root privilegies"
 fi
 
-if [ -z "$DMGR_NAME" ]; then
-    DMGR_NAME=$(basename $0)
+if [ -z "$DEBG_NAME" ]; then
+    DEBG_NAME=$(basename $0)
 fi
 
-DMGR_SYNOPSIS="\
+DEBG_SYNOPSIS="\
 usage: debgen <command> [<args>]
 
 A tool to flash, generate or prepare debian chroot for RPI and PC architecture.
@@ -54,16 +54,16 @@ Flash commands (/!\ caution in what you are flashing)
 "
 
 if [ $# -lt 1 ]; then
-    echo "$DMGR_SYNOPSIS"
+    echo "$DEBG_SYNOPSIS"
     echo_die 1 "Need arguments"
 fi
 
-DMGR_CMD_NAME=$1
+DEBG_CMD_NAME=$1
 
-. ${DMGR_CURRENT_DIR}/functions_chroot.sh
-. ${DMGR_CURRENT_DIR}/functions_flash.sh
+. ${DEBG_CURRENT_DIR}/functions_chroot.sh
+. ${DEBG_CURRENT_DIR}/functions_flash.sh
 
-case $DMGR_CMD_NAME in
+case $DEBG_CMD_NAME in
     "pc-debootstrap")
         shift
         _debootstrap_pc "$@"
@@ -118,7 +118,7 @@ case $DMGR_CMD_NAME in
         ;;
 
     "help")
-        echo "$DMGR_SYNOPSIS"
+        echo "$DEBG_SYNOPSIS"
         exit 0
         ;;
 
@@ -138,7 +138,7 @@ case $DMGR_CMD_NAME in
         ;;
 
     *)
-        echo "$DMGR_SYNOPSIS"
+        echo "$DEBG_SYNOPSIS"
         echo_die 1 "Unknown command $1"
         ;;
 esac

@@ -5,10 +5,11 @@ if [ "$(id -u)" != 0 ]; then
     exit 0
 fi
 
-export DMGR_DEBUG=ON
+export DEBG_DEBUG=ON
 
-SRCDIR=$(realpath $(dirname $0)/..)
+SRCDIR=$(realpath $(dirname $0)/../..)
 
+cp -R src/debian .
 cp debian/no_qemu_version_control debian/control
 
 cd $SRCDIR
@@ -25,8 +26,8 @@ if [ ! -d ${TEST_CHROOT_PATH} ]; then
 
     # need qemu-user-static >= 1:5.0.4 to run rpi emulation with "raspi-copy-n-..." package installed (bullseye dist do the hack)
     debgen pc-debootstrap -d $TEST_CHROOT_PATH -r phenom:3142/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc
-    cp ${SRCDIR}/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
-    cp ${SRCDIR}/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
+    cp ${SRCDIR}/src/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
+    cp ${SRCDIR}/src/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
 
     mkdir -p ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d
     cat <<EOF > ${TEST_CHROOT_PATH}/etc/systemd/system/getty@ttyS0.service.d/override.conf
@@ -45,8 +46,8 @@ EOF
     debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
 
 else
-    cp ${SRCDIR}/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
-    cp ${SRCDIR}/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
+    cp ${SRCDIR}/src/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
+    cp ${SRCDIR}/src/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
 
 fi
 
@@ -66,9 +67,9 @@ truncate -s 5G /tmp/dmgr_test_disk2.img
 truncate -s 5G /tmp/dmgr_test_disk3.img
 
 if [ "$1" = "-g" -o "$1" = "--graphic" ]; then
-    DMGR_KVM_OPTION="-serial stdio"
+    DEBG_KVM_OPTION="-serial stdio"
 else
-    DMGR_KVM_OPTION="-nographic"
+    DEBG_KVM_OPTION="-nographic"
 fi
 
 # Generate new images into kvm (with scenario_create_systems.sh)
@@ -77,10 +78,10 @@ cat <<EOF > /tmp/dmgr_expect_test.sh
 
 set timeout 1800
 
-spawn kvm -m 2G $DMGR_KVM_OPTION -drive format=raw,file=${TEST_CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img -drive format=raw,file=/tmp/dmgr_test_disk3.img
+spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_CHROOT_PATH}.img -drive format=raw,file=/tmp/dmgr_test_disk2.img -drive format=raw,file=/tmp/dmgr_test_disk3.img
 
 expect {
- "DMGR_ERROR" { exit 1 }
+ "DEBG_ERROR" { exit 1 }
  timeout { exit 1 }
 }
 EOF
@@ -97,10 +98,10 @@ cat <<EOF > /tmp/dmgr_expect_test.sh
 
 set timeout 300
 
-spawn kvm -m 2G $DMGR_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk3.img
+spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk3.img
 
 expect {
- "DMGR OK" { exit 0 }
+ "DEBG OK" { exit 0 }
  timeout { exit 1 }
 }
 EOF

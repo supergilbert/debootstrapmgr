@@ -26,4 +26,4 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run minimal package test
-        run: sudo ./test/github_action_test.sh
+        run: sudo ./src/test/github_action_test.sh

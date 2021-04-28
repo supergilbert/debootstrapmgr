@@ -1,0 +1,9 @@
+#!/bin/sh
+
+DEBG_DEBOOTSTRAP="/usr/lib/debgen/debgen.sh"
+
+if [ "$(id -u)" != 0 ]; then
+    sudo --preserve-env $DEBG_DEBOOTSTRAP "$@"
+else
+    $DEBG_DEBOOTSTRAP "$@"
+fi

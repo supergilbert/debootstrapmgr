@@ -6,7 +6,7 @@
   * It can erase all your device data
     * It may not be fully tested
 
-debian-generator is licensed under the MIT License, see [LICENSE.txt](https://github.com/ocornut/imgui/blob/master/LICENSE.txt) for more information.
+debian-generator is licensed under the MIT License, see [LICENSE.txt](https://github.com/supergilbert/debian-generator/blob/master/LICENSE.txt) for more information.
 
 (This software is used to facilitate the creation of bootable Debian system)
 

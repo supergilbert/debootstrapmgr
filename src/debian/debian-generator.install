@@ -1,0 +1,7 @@
+src/debgen.sh usr/lib/debgen
+src/diskhdr.py usr/lib/debgen
+src/functions.sh usr/lib/debgen
+src/functions_chroot.sh usr/lib/debgen
+src/functions_flash.sh usr/lib/debgen
+src/wrapper/debgen usr/bin
+src/wrapper/diskhdr usr/bin

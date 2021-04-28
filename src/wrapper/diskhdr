@@ -1,0 +1,9 @@
+#!/bin/sh
+
+DEBG_DISKHDR="/usr/lib/debgen/diskhdr.py"
+
+if [ "$(id -u)" != 0 ]; then
+    sudo --preserve-env $DEBG_DISKHDR "$@"
+else
+    $DEBG_DISKHDR "$@"
+fi
