@@ -31,12 +31,10 @@ apt -y install debian-generator
 
 TEST_CHROOT_PATH=./test_chroot
 
-losetup --raw
-while losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; do
-    kpartx -d ${TEST_CHROOT_PATH}.img
-    sleep .5s
-done
-losetup --raw
+if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
+    echo "Environment is not clean (loop device bound on destination image)"
+    exit 1
+fi
 
 debgen pc-debootstrap -d $TEST_CHROOT_PATH
 
@@ -62,7 +60,6 @@ StandardInput=tty
 StandardOutput=tty
 EOF
 debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
-
 
 debgen pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
 
