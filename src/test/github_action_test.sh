@@ -2,8 +2,6 @@
 
 export DEBIAN_FRONTEND="noninteractive"
 
-losetup --raw
-
 apt update
 
 apt -y upgrade
@@ -12,6 +10,8 @@ apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
 cp -R src/debian_tmp ./debian
 cp debian/no_qemu_version_control debian/control
+
+losetup --raw
 
 debuild -b -us -uc
 
