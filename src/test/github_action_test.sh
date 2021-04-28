@@ -62,7 +62,7 @@ debgen pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
 cat <<EOF > /tmp/dmgr_expect_test
 #!/usr/bin/expect -f
 
-set timeout 180
+set timeout 300
 
 spawn qemu-system-x86_64 -nographic -m 1G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_CHROOT_PATH}.img
 
