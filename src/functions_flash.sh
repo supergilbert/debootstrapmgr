@@ -389,7 +389,10 @@ EOF
 EOF
         # Debug temp
         echo "block device: [${DEBG_BLKDEV}]"
+        losetup --raw
+        echo "---"
         cat ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
+        echo "###"
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then
