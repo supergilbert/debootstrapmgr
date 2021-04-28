@@ -31,6 +31,13 @@ apt -y install debian-generator
 
 TEST_CHROOT_PATH=./test_chroot
 
+losetup --raw
+while losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; do
+    kpartx -d ${TEST_CHROOT_PATH}.img
+    sleep .5s
+done
+losetup --raw
+
 debgen pc-debootstrap -d $TEST_CHROOT_PATH
 
 cat <<EOF > ${TEST_CHROOT_PATH}/root/run_test.sh

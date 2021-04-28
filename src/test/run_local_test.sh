@@ -96,7 +96,7 @@ chmod +x /tmp/dmgr_expect_test.sh
 cat <<EOF > /tmp/dmgr_expect_test.sh
 #!/usr/bin/expect -f
 
-set timeout 300
+set timeout 180
 
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk3.img
 
