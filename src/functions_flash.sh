@@ -385,8 +385,11 @@ GRUB_DISABLE_OS_PROBER="true"
 EOF
         sed -i 's/#GRUB_DISABLE_RECOVERY="true"/GRUB_DISABLE_RECOVERY="true"/' ${DEBG_TMP_DIR}/mnt/etc/default/grub
         cat <<EOF > ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
-(hd0)${DEBG_BLKDEV}
+(hd0) ${DEBG_BLKDEV}
 EOF
+        echo "####################"
+        losetup --raw
+        echo "####################"
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then

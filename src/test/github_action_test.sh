@@ -2,6 +2,8 @@
 
 export DEBIAN_FRONTEND="noninteractive"
 
+losetup --raw
+
 apt update
 
 apt -y upgrade
