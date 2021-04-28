@@ -387,6 +387,8 @@ EOF
         cat <<EOF > ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
 (hd0) $DEBG_BLKDEV
 EOF
+        # Debug temp
+        cat ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then
