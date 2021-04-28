@@ -9,7 +9,7 @@ export DEBG_DEBUG=ON
 
 SRCDIR=$(realpath $(dirname $0)/../..)
 
-cp -R src/debian .
+cp -R src/debian_tmp ./debian
 cp debian/no_qemu_version_control debian/control
 
 cd $SRCDIR
