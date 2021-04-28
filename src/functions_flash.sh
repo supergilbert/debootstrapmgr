@@ -385,23 +385,24 @@ GRUB_DISABLE_OS_PROBER="true"
 EOF
         sed -i 's/#GRUB_DISABLE_RECOVERY="true"/GRUB_DISABLE_RECOVERY="true"/' ${DEBG_TMP_DIR}/mnt/etc/default/grub
         cat <<EOF > ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
-(hd0) $DEBG_BLKDEV
+(hd0)${DEBG_BLKDEV}
 EOF
         # Debug temp
+        echo "block device: [${DEBG_BLKDEV}]"
         cat ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then
         _dmgr_install_tmp_grub_cfg
 
-        echo_notify "Installing grub"
+        echo_notify "Installing grub efi"
         chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force || true
         chroot ${DEBG_TMP_DIR}/mnt update-grub || true
         echo_notify "grub installed"
     else
         _dmgr_install_tmp_grub_cfg
 
-        echo_notify "Installing grub"
+        echo_notify "Installing grub mbr"
         chroot ${DEBG_TMP_DIR}/mnt grub-install --force --target=i386-pc $DEBG_BLKDEV || true
         chroot ${DEBG_TMP_DIR}/mnt grub-mkconfig > ${DEBG_TMP_DIR}/mnt/boot/grub/grub.cfg || true
         echo_notify "grub installed"
