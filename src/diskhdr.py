@@ -314,8 +314,6 @@ def create_mountpoints(system_repr, disks_list, blk_prefix_list):
 
 def mount_system(system_repr, blk_prefix_list, mountpoint):
     blkpath = blk_prefix_list[system_repr["disk"]] + "%d" % (system_repr["partidx"] + 1)
-    print("mount {blk} {mount}".format(blk=blkpath,
-                                       mount=mountpoint))
     os.system("mount {blk} {mount}".format(blk=blkpath,
                                            mount=mountpoint))
 
@@ -374,9 +372,9 @@ if command == "part":
     #     using_kpartx = True
     # else:
     #     dst_path = os.path.realpath(dst_path)
-    format_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
-    log_msg(format_cmd)
-    if os.system(format_cmd) != 0:
+    part_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
+    log_msg(part_cmd)
+    if os.system(part_cmd) != 0:
         die(1, "Format fail")
 elif command == "format":
     if len(cmd_n_args) > 2:
@@ -387,10 +385,10 @@ elif command == "format":
         using_kpartx = True
     else:
         dst_path = os.path.realpath(dst_path)
-    format_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
-    format_cmd += " && partprobe %s" % dst_path
-    log_msg(format_cmd)
-    if os.system(format_cmd) != 0:
+    part_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
+    part_cmd += " && partprobe %s" % dst_path
+    log_msg(part_cmd)
+    if os.system(part_cmd) != 0:
         die(1, "Format fail")
     if using_kpartx:
         loop_num = kpartx_file(dst_path)
@@ -465,6 +463,7 @@ else:
             die(1, "Wrong number of arguments")
         mount_point = cmd_n_args[3]
         mount_system(system_repr_list[system_num], [blk_prefix], mount_point)
+        print(blk_prefix)
     elif command == "umount":
         if len(cmd_n_args) != 4:
             log_out(SYNOPSIS)
