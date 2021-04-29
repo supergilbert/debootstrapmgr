@@ -397,13 +397,13 @@ elif command == "format":
             mkfs_cmd = gen_mkfs_cmd(disks_list[0]["parts"], blk_prefix)
             log_msg(mkfs_cmd)
             if os.system(mkfs_cmd) != 0:
-                os.system("kpartx -d %s" % dst_path)
+                os.system("kpartx -dv %s" % dst_path)
                 die(1, "%s: mkfs fail" % command)
             create_mountpoints(system_repr_list[0], disks_list, [blk_prefix])
         except DiskHandlerException as e:
             log_err("Unable to create filesystem\n%s" % e)
         finally:
-            os.system("kpartx -d %s" % dst_path)
+            os.system("kpartx -dv %s" % dst_path)
     else:
         mkfs_cmd = gen_mkfs_cmd(disks_list[0]["parts"], dst_path)
         log_msg(mkfs_cmd)
