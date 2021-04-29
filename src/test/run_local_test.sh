@@ -25,7 +25,7 @@ TEST_SCRIPT="/root/dmgr_test.sh"
 if [ ! -d ${TEST_CHROOT_PATH} ]; then
 
     # need qemu-user-static >= 1:5.0.4 to run rpi emulation with "raspi-copy-n-..." package installed (bullseye dist do the hack)
-    debgen pc-debootstrap -d $TEST_CHROOT_PATH -r phenom:3142/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc
+    debgen pc-debootstrap -d $TEST_CHROOT_PATH -r phenom:3142/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc -i $PKGPATH
     cp ${SRCDIR}/src/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
     cp ${SRCDIR}/src/test/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root
 
@@ -97,6 +97,13 @@ cat <<EOF > /tmp/dmgr_expect_test.sh
 #!/usr/bin/expect -f
 
 set timeout 180
+
+spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk2.img
+
+expect {
+ "DEBG OK" { exit 0 }
+ timeout { exit 1 }
+}
 
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=/tmp/dmgr_test_disk3.img
 

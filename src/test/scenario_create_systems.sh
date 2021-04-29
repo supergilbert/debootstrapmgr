@@ -22,7 +22,7 @@ Description=Test debian-generator
 [Service]
 Restart=no
 ExecStart=
-ExecStart=-/root/run_test.sh
+ExecStart=-${2}
 Type=oneshot
 RemainAfterExit=no
 StandardInput=tty
@@ -33,7 +33,7 @@ EOF
 
 debgen rpi-debootstrap -C phenom:3142 -d ${TEST_CHROOT_PATH}
 cp /root/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
-add_ttyS0_service $TEST_CHROOT_PATH
+add_ttyS0_service $TEST_CHROOT_PATH /root/run_test.sh
 
 debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
@@ -49,7 +49,7 @@ rm -rf ${TEST_CHROOT_PATH}
 
 debgen pc-debootstrap -d ${TEST_CHROOT_PATH} -r phenom:3142/ftp.free.fr/debian
 cp /root/scenario_echo_dmgr_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
-add_ttyS0_service $TEST_CHROOT_PATH
+add_ttyS0_service $TEST_CHROOT_PATH /root/run_test.sh
 
 debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
@@ -58,6 +58,7 @@ debgen pc-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 rm -f /tmp/test.img
 
 debgen pc-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdc
+debgen pc-flash -s ${TEST_CHROOT_PATH} -d /dev/sdc
 
 trap - INT TERM EXIT
 
