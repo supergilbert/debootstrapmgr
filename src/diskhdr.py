@@ -285,9 +285,9 @@ def check_dstpath(dstpath):
 
 
 def set_kpartx_if_needed(dst_path):
+    "Return loop device number if destination is a file else return None"
     if check_dstpath(dst_path) == DST_FILE:
-        loop_num = kpartx_file(cmd_n_args[2])
-        return "/dev/mapper/loop%dp" % loop_num
+        return kpartx_file(cmd_n_args[2])
     return None
 
 cmd_n_args = sys.argv[2:]
@@ -451,9 +451,11 @@ else:
     dst_path = cmd_n_args[2]
 
     if command == "mount":
-        blk_prefix = set_kpartx_if_needed(dst_path)
-        if blk_prefix:
-            using_kpartx
+        blk_prefix = None
+        loop_num = set_kpartx_if_needed(dst_path)
+        if loop_num != None:
+            using_kpartx = True
+            blk_prefix = "/dev/mapper/loop%dp" % loop_num
         else:
             blk_prefix = os.path.realpath(dst_path)
         if len(cmd_n_args) != 4:
@@ -463,7 +465,10 @@ else:
             die(1, "Wrong number of arguments")
         mount_point = cmd_n_args[3]
         mount_system(system_repr_list[system_num], [blk_prefix], mount_point)
-        print(blk_prefix)
+        if using_kpartx:
+            print("/dev/loop%d" % loop_num)
+        else:
+            print(blk_prefix)
     elif command == "umount":
         if len(cmd_n_args) != 4:
             log_out(SYNOPSIS)
@@ -476,11 +481,11 @@ else:
         if len(cmd_n_args) != 3:
             log_out(SYNOPSIS)
             die(1, "Wrong number of arguments")
-        blk_prefix = set_kpartx_if_needed(dst_path)
-        if blk_prefix:
+        loop_num = set_kpartx_if_needed(dst_path)
+        if loop_num != None:
+            blk_prefix = "/dev/mapper/loop%dp" % loop_num
             dump_fstab(system_repr_list[system_num], disks_list, [blk_prefix])
             os.system("kpartx -d %s > /dev/null 2>&1" % dst_path)
-            using_kpartx
         else:
             dump_fstab(system_repr_list[system_num], disks_list, [os.path.realpath(dst_path)])
     else:

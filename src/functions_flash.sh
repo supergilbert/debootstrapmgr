@@ -304,12 +304,9 @@ _handle_flash_dest_copy_n_set_trap ()
         fi
     fi
 
-    losetup --raw
     $diskhdr_cmd $DEBG_JSON format $DEBG_DST_PATH
-    losetup --raw
     DEBG_FSTAB_STR="$($diskhdr_cmd $DEBG_JSON fstab 0 $DEBG_DST_PATH)"
     $diskhdr_cmd $DEBG_JSON mount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
-    losetup --raw
 
     echo_notify "Copying files ..."
     rsync -ad ${DEBG_TMP_DIR}/chroot/* ${DEBG_TMP_DIR}/mnt/

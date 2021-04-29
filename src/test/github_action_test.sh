@@ -2,9 +2,9 @@
 
 export DEBIAN_FRONTEND="noninteractive"
 
-# apt update
+apt update
 
-# apt -y upgrade
+apt -y upgrade
 
 apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
