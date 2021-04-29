@@ -304,17 +304,9 @@ _handle_flash_dest_copy_n_set_trap ()
         fi
     fi
 
-    echo "1 ##################"
-    losetup --raw
     $diskhdr_cmd $DEBG_JSON format $DEBG_DST_PATH
-    echo "2 ##################"
-    losetup --raw
     DEBG_FSTAB_STR="$($diskhdr_cmd $DEBG_JSON fstab 0 $DEBG_DST_PATH)"
-    echo "3 ##################"
-    losetup --raw
     DEBG_BLKDEV="$($diskhdr_cmd $DEBG_JSON mount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt)"
-    echo "4 ##################"
-    losetup --raw
 
     echo_notify "Copying files ..."
     rsync -ad ${DEBG_TMP_DIR}/chroot/* ${DEBG_TMP_DIR}/mnt/
@@ -381,12 +373,6 @@ _flash_pc ()
         echo_die 1 "block device missing"
     fi
 
-    # if [ -n "$DEBG_IMAGE_TYPE" ]; then
-    #     DEBG_BLKDEV=$(losetup --raw | grep $DEBG_DST_PATH | cut -f 1 -d' ')
-    # else
-    #     DEBG_BLKDEV=$DEBG_DST_PATH
-    # fi
-
     setup_chroot_operation ${DEBG_TMP_DIR}/mnt
 
     _dmgr_install_tmp_grub_cfg ()
@@ -399,9 +385,6 @@ EOF
         cat <<EOF > ${DEBG_TMP_DIR}/mnt/boot/grub/device.map
 (hd0) ${DEBG_BLKDEV}
 EOF
-        echo "####################"
-        losetup --raw
-        echo "####################"
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then
