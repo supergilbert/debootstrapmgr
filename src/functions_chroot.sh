@@ -33,9 +33,9 @@ _install_deb_pkg ()
         apt-ftparchive packages pkg > pkg/Packages
         cd -
         DEBG_ARCHITECTURE="$(chroot $_CHROOT_DIR dpkg --print-architecture)"
-        echo "Archive: dmgrtmp\nArchitecture: $DEBG_ARCHITECTURE" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
-        echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${_CHROOT_DIR}/etc/apt/sources.list.d/dmgrtmp.list
-        cat <<EOF > ${_CHROOT_DIR}/etc/apt/preferences.d/dmgrtmp.pref
+        echo "Archive: debgtmp\nArchitecture: $DEBG_ARCHITECTURE" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
+        echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${_CHROOT_DIR}/etc/apt/sources.list.d/debgtmp.list
+        cat <<EOF > ${_CHROOT_DIR}/etc/apt/preferences.d/debgtmp.pref
 Package: *
 Pin: origin ""
 Pin-Priority: 501
@@ -50,7 +50,7 @@ EOF
         echo_notify "Installing following packages:${_PKG_LIST}"
         chroot $_CHROOT_DIR apt --allow-unauthenticated -y install $_PKG_LIST
 
-        rm -rf ${_CHROOT_DIR}/etc/apt/preferences.d/dmgrtmp.pref ${_CHROOT_DIR}/etc/apt/sources.list.d/dmgrtmp.list ${_CHROOT_DIR}/tmp/pkg_repo
+        rm -rf ${_CHROOT_DIR}/etc/apt/preferences.d/debgtmp.pref ${_CHROOT_DIR}/etc/apt/sources.list.d/debgtmp.list ${_CHROOT_DIR}/tmp/pkg_repo
     fi
 }
 
@@ -755,8 +755,8 @@ _chroot_to_live_squashfs ()
         echo_die 1 "Destination already exist"
     fi
 
-    DEBG_TMP_DIR="$(mktemp -d --suffix=_dmgr_tmp_dir)"
-    DEBG_EXCLUSION_FILE="$(mktemp --suffix=_dmgr_exclusion)"
+    DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_tmp_dir)"
+    DEBG_EXCLUSION_FILE="$(mktemp --suffix=_debg_exclusion)"
     set_trap "unset_chroot_operation $DEBG_TMP_DIR; rm -rf $DEBG_EXCLUSION_FILE $DEBG_TMP_DIR"
 
     echo_notify "Copying chroot directory ..."

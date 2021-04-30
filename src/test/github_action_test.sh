@@ -21,9 +21,9 @@ cd /tmp/repo
 apt-ftparchive packages pkg > pkg/Packages
 cd -
 
-echo "Archive: dmgrtmp\nArchitecture: $(dpkg --print-architecture)" > /tmp/repo/Release
+echo "Archive: debgtmp\nArchitecture: $(dpkg --print-architecture)" > /tmp/repo/Release
 
-echo "deb [trusted=yes] file:///tmp/repo/ pkg/" > /etc/apt/sources.list.d/dmgrtmp.list
+echo "deb [trusted=yes] file:///tmp/repo/ pkg/" > /etc/apt/sources.list.d/debgtmp.list
 
 apt update
 
@@ -63,7 +63,7 @@ debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
 
 debgen pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
 
-cat <<EOF > /tmp/dmgr_expect_test
+cat <<EOF > /tmp/debg_expect_test
 #!/usr/bin/expect -f
 
 set timeout 300
@@ -71,10 +71,9 @@ set timeout 300
 spawn qemu-system-x86_64 -nographic -m 1G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_CHROOT_PATH}.img
 
 expect {
-  "DEBG OK" { exit 0 }
-  timeout { exit 1 }
+  "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; exit 0 }
+  timeout { send_error "\nSystem boot kvm timed out\n\n" ; exit 1 }
 }
 EOF
-chmod +x /tmp/dmgr_expect_test
-
-/tmp/dmgr_expect_test
+chmod +x /tmp/debg_expect_test
+/tmp/debg_expect_test

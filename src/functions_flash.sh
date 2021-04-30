@@ -375,9 +375,9 @@ _flash_pc ()
 
     setup_chroot_operation ${DEBG_TMP_DIR}/mnt
 
-    _dmgr_install_tmp_grub_cfg ()
+    _debg_install_tmp_grub_cfg ()
     {
-        GRUB_CFG_PATH=${DEBG_TMP_DIR}/mnt/etc/default/grub.d/dmgr.cfg
+        GRUB_CFG_PATH=${DEBG_TMP_DIR}/mnt/etc/default/grub.d/debg.cfg
         cat <<EOF > $GRUB_CFG_PATH
 GRUB_DISABLE_OS_PROBER="true"
 EOF
@@ -388,14 +388,14 @@ EOF
     }
 
     if [ -n "$DEBG_GRUBEFI" ]; then
-        _dmgr_install_tmp_grub_cfg
+        _debg_install_tmp_grub_cfg
 
         echo_notify "Installing grub efi"
         chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force || true
         chroot ${DEBG_TMP_DIR}/mnt update-grub || true
         echo_notify "grub installed"
     else
-        _dmgr_install_tmp_grub_cfg
+        _debg_install_tmp_grub_cfg
 
         echo_notify "Installing grub mbr"
         chroot ${DEBG_TMP_DIR}/mnt grub-install --force --target=i386-pc $DEBG_BLKDEV || true
@@ -447,7 +447,7 @@ _flash_pc_live ()
     _handle_dir_to_livesys_args "$@"
 
     echo_notify "Generating live system"
-    DEBG_TMP_DIR="$(mktemp -d --suffix=_dmgr_livesys_dir)"
+    DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_livesys_dir)"
     mkdir ${DEBG_TMP_DIR}/live ${DEBG_TMP_DIR}/mnt
 
     # nb: _chroot_to_livesys_dir use set_trap
@@ -543,7 +543,7 @@ _flash_rpi_live ()
     _handle_dir_to_livesys_args "$@"
 
     echo_notify "Generating live system"
-    DEBG_TMP_DIR="$(mktemp -d --suffix=_dmgr_livesys_dir)"
+    DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_livesys_dir)"
     mkdir ${DEBG_TMP_DIR}/live ${DEBG_TMP_DIR}/mnt
 
     # nb: _chroot_to_livesys_dir use set_trap
