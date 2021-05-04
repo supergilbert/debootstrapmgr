@@ -15,7 +15,11 @@
 
 
 %:
-	dh $@
+	dh $@ --with bash-completion
+
+# Hack to keep name coherence in directory completions
+override_dh_auto_build:
+	mkdir tmp; cp src/completions/debgen.zsh tmp/_debgen
 
 
 # dh_make generated override targets

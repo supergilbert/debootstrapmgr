@@ -41,6 +41,10 @@ debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.squashfs
 rm -f /tmp/test.squashfs
 
 debgen rpi-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
+    echo "ERROR: Loop device still bind ${TEST_CHROOT_PATH}.img"
+    exit 1
+fi
 rm -f /tmp/test.img
 
 debgen rpi-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdb
@@ -60,6 +64,10 @@ debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.squashfs
 rm -f /tmp/test.squashfs
 
 debgen pc-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
+    echo "ERROR: Loop device still bind ${TEST_CHROOT_PATH}.img"
+    exit 1
+fi
 rm -f /tmp/test.img
 
 debgen pc-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdb

@@ -10,12 +10,11 @@ export DEBG_DEBUG=ON
 SRCDIR=$(realpath $(dirname $0)/../..)
 
 cp -R src/debian_tmp ./debian
-cp debian/no_qemu_version_control debian/control
 
 cd $SRCDIR
 debuild -b -us -uc
 cd -
-PKGPATH=${SRCDIR}/../debian-generator_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_$(dpkg --print-architecture).deb
+PKGPATH=${SRCDIR}/../debian-generator_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
 
 
 TEST_CHROOT_PATH="/tmp/debg_test_chroot"

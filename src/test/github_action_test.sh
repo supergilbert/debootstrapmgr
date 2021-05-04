@@ -15,7 +15,7 @@ debuild -b -us -uc
 
 mkdir -p /tmp/repo/pkg
 
-cp ../debian-generator_$(dpkg-parsechangelog -l debian/changelog -S Version)_$(dpkg --print-architecture).deb /tmp/repo/pkg
+cp ../debian-generator_$(dpkg-parsechangelog -l debian/changelog -S Version)_all.deb /tmp/repo/pkg
 
 cd /tmp/repo
 apt-ftparchive packages pkg > pkg/Packages
