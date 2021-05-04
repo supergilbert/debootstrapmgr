@@ -635,8 +635,8 @@ EOF
     else
         set_trap "unset_chroot_operation ${2}/tmpdir"
         setup_chroot_operation ${2}/tmpdir
-        _chroot_add_pkg  ${2}/tmpdir live-boot
         # live-boot installation automatically run update-initramfs
+        _chroot_add_pkg  ${2}/tmpdir live-boot
         unset_chroot_operation ${2}/tmpdir
         unset_trap
     fi

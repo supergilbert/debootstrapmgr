@@ -49,6 +49,7 @@ Flash commands (/!\ caution in what you are flashing)
 
   pc-flash
   pc-flash-live
+  pc-flash-iso
   rpi-flash
   rpi-flash-live
 "
@@ -102,6 +103,12 @@ case $DEBG_CMD_NAME in
     "pc-flash-live")
         shift
         _flash_pc_live "$@"
+        echo_notify "Flash done"
+        ;;
+
+    "pc-flash-iso")
+        shift
+        _flash_pc_iso "$@"
         echo_notify "Flash done"
         ;;
 

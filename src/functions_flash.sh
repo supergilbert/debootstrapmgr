@@ -275,7 +275,7 @@ _get_sys_min_size ()
     echo $_SIZE
 }
 
-_handle_flash_dest_copy_n_set_trap ()
+_dest_format_mount_copy_n_set_trap ()
 {
     # TODO factorise with rpi
     unset_trap
@@ -365,7 +365,7 @@ _flash_pc ()
         echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DEBG_SWAP_SIZE}/g" > $DEBG_JSON
     fi
 
-    _handle_flash_dest_copy_n_set_trap
+    _dest_format_mount_copy_n_set_trap
 
     # Grub installation
 
@@ -420,7 +420,7 @@ EOF
     unset_trap
 }
 
-_handle_flashlive_block_or_file ()
+_livedest_handle_block_or_file_n_set_trap ()
 {
     DEBG_JSON="$(mktemp --suffix=_json)"
     echo $DEFAULT_LIVE_JSON > $DEBG_JSON
@@ -461,7 +461,7 @@ _flash_pc_live ()
 
     diskhdr_cmd="${DEBG_CURRENT_DIR}/diskhdr.py"
 
-    _handle_flashlive_block_or_file
+    _livedest_handle_block_or_file_n_set_trap
 
     $diskhdr_cmd $DEBG_JSON format $DEBG_DST_PATH
     $diskhdr_cmd $DEBG_JSON mount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
@@ -486,6 +486,39 @@ EOF
 
     rm -rf $DEBG_TMP_DIR $DEBG_JSON
     unset_trap
+}
+
+_flash_pc_iso ()
+{
+    _handle_dir_to_livesys_args "$@"
+
+    echo_notify "Generating live system"
+    DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_livesys_dir)"
+    mkdir ${DEBG_TMP_DIR}/live
+
+    # nb: _chroot_to_livesys_dir use set_trap
+    if [ -n "$DEBG_SRC_PATH" ]; then
+        DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
+        _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
+    else
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        DEBG_CHROOT_KERNEL_VERSION=$(chroot ${DEBG_TMP_DIR}/chroot dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
+        _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
+        rm -rf ${DEBG_TMP_DIR}/chroot
+    fi
+
+    mkdir -p ${DEBG_TMP_DIR}/live/boot/grub
+
+    cp ${DEBG_CURRENT_DIR}/grub_stage2_eltorito ${DEBG_TMP_DIR}/live/boot/grub/stage2_eltorito
+    cat <<EOF > ${DEBG_TMP_DIR}/live/boot/grub/menu.lst
+kernel /vmlinuz-${DEBG_CHROOT_KERNEL_VERSION} boot=live components toram
+initrd /initrd.img-${DEBG_CHROOT_KERNEL_VERSION}
+boot
+EOF
+
+    genisoimage -o $DEBG_DST_PATH -R -J -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table ${DEBG_TMP_DIR}/live
+
+    rm -rf ${DEBG_TMP_DIR}
 }
 
 # RPI Part
@@ -524,7 +557,7 @@ _flash_rpi ()
         echo "$DEFAULT_FSTAB_RPI_JSON" > $DEBG_JSON
     fi
 
-    _handle_flash_dest_copy_n_set_trap
+    _dest_format_mount_copy_n_set_trap
 
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
 
@@ -558,7 +591,7 @@ _flash_rpi_live ()
 
     diskhdr_cmd="${DEBG_CURRENT_DIR}/diskhdr.py"
 
-    _handle_flashlive_block_or_file
+    _livedest_handle_block_or_file_n_set_trap
 
     $diskhdr_cmd $DEBG_JSON format $DEBG_DST_PATH
     $diskhdr_cmd $DEBG_JSON mount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
