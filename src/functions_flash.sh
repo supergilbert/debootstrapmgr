@@ -452,8 +452,10 @@ _flash_pc_live ()
 
     # nb: _chroot_to_livesys_dir use set_trap
     if [ -n "$DEBG_SRC_PATH" ]; then
+        DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
         _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
     else
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
         ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
         _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
         rm -rf ${DEBG_TMP_DIR}/chroot
@@ -469,15 +471,13 @@ _flash_pc_live ()
     rsync --modify-window=1 --update --recursive ${DEBG_TMP_DIR}/live/* ${DEBG_TMP_DIR}/mnt
 
     # Setup Boot
-    mv ${DEBG_TMP_DIR}/mnt/vmlinuz* ${DEBG_TMP_DIR}/mnt/vmlinuz
-    mv ${DEBG_TMP_DIR}/mnt/initrd.img* ${DEBG_TMP_DIR}/mnt/initrd.img
-
     grub-install --target=i386-pc --boot-directory=${DEBG_TMP_DIR}/mnt $DEBG_DST_PATH
     cat <<EOF > ${DEBG_TMP_DIR}/mnt/grub/grub.cfg
 insmod ext2
+set timeout=0
 set root='hd0,msdos1'
-linux /vmlinuz boot=live components persistence
-initrd /initrd.img
+linux /vmlinuz-${DEBG_CHROOT_KERNEL_VERSION} boot=live components persistence
+initrd /initrd.img-${DEBG_CHROOT_KERNEL_VERSION}
 boot
 EOF
     # End of boot setup
@@ -507,14 +507,19 @@ _flash_pc_iso ()
         rm -rf ${DEBG_TMP_DIR}/chroot
     fi
 
+    # Setup Boot
     mkdir -p ${DEBG_TMP_DIR}/live/boot/grub
-
     cp ${DEBG_CURRENT_DIR}/grub_stage2_eltorito ${DEBG_TMP_DIR}/live/boot/grub/stage2_eltorito
     cat <<EOF > ${DEBG_TMP_DIR}/live/boot/grub/menu.lst
+default 0
+timeout 0
+title live
 kernel /vmlinuz-${DEBG_CHROOT_KERNEL_VERSION} boot=live components toram
 initrd /initrd.img-${DEBG_CHROOT_KERNEL_VERSION}
 boot
 EOF
+    # End of boot setup
+    cp ${DEBG_TMP_DIR}/live/boot/grub/menu.lst ${DEBG_TMP_DIR}/live/boot/grub/grub.cfg
 
     genisoimage -o $DEBG_DST_PATH -R -J -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -boot-info-table ${DEBG_TMP_DIR}/live
 
@@ -598,7 +603,7 @@ _flash_rpi_live ()
 
     rsync --modify-window=1 --update --recursive ${DEBG_TMP_DIR}/live/* ${DEBG_TMP_DIR}/mnt
 
-    # Setup Boot
+    # Setup Boot (TODO another method to retrieve kernel and initrd paths)
     mv ${DEBG_TMP_DIR}/mnt/initrd*v7+.img ${DEBG_TMP_DIR}/mnt/initrd7.img
     mv ${DEBG_TMP_DIR}/mnt/initrd*v7l+.img ${DEBG_TMP_DIR}/mnt/initrd7l.img
     mv ${DEBG_TMP_DIR}/mnt/initrd*v8+.img ${DEBG_TMP_DIR}/mnt/initrd8.img
