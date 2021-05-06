@@ -9,12 +9,14 @@ export DEBG_DEBUG=ON
 
 SRCDIR=$(realpath $(dirname $0)/../..)
 
-cp -R src/debian_tmp ./debian
+rm -rf ${SRCDIR}/debian
+cp -R ${SRCDIR}/src/debian_tmp ${SRCDIR}/debian
+cp ${SRCDIR}/debian/debian_control ${SRCDIR}/debian/control
 
 cd $SRCDIR
 debuild -b -us -uc
 cd -
-PKGPATH=${SRCDIR}/../debian-generator_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
+PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
 
 
 TEST_CHROOT_PATH="/tmp/debg_test_chroot"
@@ -48,8 +50,8 @@ if [ ! -d ${TEST_CHROOT_PATH} ]; then
 
     add_ttyS0_service ${TEST_CHROOT_PATH} /root/run_test.sh
 else
-    cp ${SRCDIR}/src/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
-    cp ${SRCDIR}/src/test/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root
+    cp -f ${SRCDIR}/src/test/scenario_create_systems.sh ${TEST_CHROOT_PATH}/root/run_test.sh
+    cp -f ${SRCDIR}/src/test/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root
 fi
 
 cat <<EOF > /tmp/debg_test_grubcfg.sh

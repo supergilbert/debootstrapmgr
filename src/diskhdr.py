@@ -18,7 +18,7 @@ COMMANDS:
   part <FILE|BLOCKDEV>...
   format <FILE|BLOCKDEVICE>...
   mount <SYSTEM_IDX> <FILE|BLOCKDEVICE> <MOUNTPOINT_PATH>
-  umount <SYSTEM_IDX> <FILE|BLOCKDEVICE>
+  umount <SYSTEM_IDX> <FILE|BLOCKDEVICE> <MOUNTPOINT_PATH>
   fstab <SYSTEM_IDX> <FILE|BLOCKDEVICE>
   swapsize <DISK_IDX>
   minsize <DISK_IDX>
@@ -237,16 +237,27 @@ def gen_mkfs_cmd(part_list, blk_prefix):
     for part in part_list:
         part_path = blk_prefix + "%d" % part_num
         wait_path(part_path)
+        new_mkfs_cmd = None
         if part["type"] == "fat32":
-            mkfs_cmd_list.append("mkfs.fat -F32 %s > /dev/null 2>&1" % part_path)
+            new_mkfs_cmd = "mkfs.fat -F32"
+            if "volname" in part.keys():
+                new_mkfs_cmd += " -n %s" % part["volname"]
         elif part["type"] == "ext4":
-            mkfs_cmd_list.append("mkfs.ext4 -F %s > /dev/null 2>&1" % part_path)
+            new_mkfs_cmd = "mkfs.ext4 -F"
+            if "volname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["volname"]
         elif part["type"] == "linux-swap":
-            mkfs_cmd_list.append("mkswap -f %s > /dev/null 2>&1" % part_path)
+            new_mkfs_cmd = "mkswap -f"
+            if "volname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["volname"]
         elif part["type"] == "ntfs":
-            mkfs_cmd_list.append("mkfs.ntfs -f %s > /dev/null 2>&1" % part_path)
+            new_mkfs_cmd = "mkfs.ntfs -f"
+            if "volname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["volname"]
         else:
             raise DiskHandlerException("Unhandled partition type %s" % part["type"])
+        new_mkfs_cmd += " %s > /dev/null 2>&1" % part_path
+        mkfs_cmd_list.append(new_mkfs_cmd)
         part_num += 1
     return " && ".join(mkfs_cmd_list)
 

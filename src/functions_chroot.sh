@@ -38,7 +38,7 @@ _install_deb_pkg ()
         cat <<EOF > ${_CHROOT_DIR}/etc/apt/preferences.d/debgtmp.pref
 Package: *
 Pin: origin ""
-Pin-Priority: 501
+Pin-Priority: 1001
 EOF
 
         _PKG_LIST=""
@@ -48,7 +48,7 @@ EOF
         done
         chroot $_CHROOT_DIR apt update
         echo_notify "Installing following packages:${_PKG_LIST}"
-        chroot $_CHROOT_DIR apt --allow-unauthenticated -y install $_PKG_LIST
+        chroot $_CHROOT_DIR apt --allow-unauthenticated -y reinstall $_PKG_LIST
 
         rm -rf ${_CHROOT_DIR}/etc/apt/preferences.d/debgtmp.pref ${_CHROOT_DIR}/etc/apt/sources.list.d/debgtmp.list ${_CHROOT_DIR}/tmp/pkg_repo
     fi
@@ -641,20 +641,20 @@ EOF
         unset_trap
     fi
 
+    if [ -n "$DEBG_ADD_PKG_LIST" -o -n "$DEBG_DEB_PKGS" -o -n "$DEBG_EXE_LIST" ]; then
+        setup_chroot_operation ${2}/tmpdir
+        _chroot_add_pkg ${2}/tmpdir $DEBG_ADD_PKG_LIST
+        _install_deb_pkg ${2}/tmpdir $DEBG_DEB_PKGS
+        _run_in_root_system ${2}/tmpdir $DEBG_EXE_LIST
+        unset_chroot_operation ${2}/tmpdir
+    fi
+
     if [ -n "$DEBG_PERSISTENCE_PATHS" ]; then
         mkdir ${2}/persistence
         for ppath in $DEBG_PERSISTENCE_PATHS; do
             mv ${2}/tmpdir${ppath} ${2}/persistence
             echo "$ppath source=persistence/$(basename $ppath)" >> ${2}/persistence.conf
         done
-    fi
-
-    if [ -n "$DEBG_ADD_PKG_LIST" -o -n "$DEBG_DEB_PKGS" -o -n "$DEBG_EXE_LIST" ]; then
-        setup_chroot_operation ${2}/tmpdir
-        _chroot_add_pkg ${2}/tmpdir $DEBG_ADD_PKG_LIST
-        _install_deb_pkg $DEBG_CHROOT_DIR $DEBG_DEB_PKGS
-        _run_in_root_system ${2}/tmpdir $DEBG_EXE_LIST
-        unset_chroot_operation ${2}/tmpdir
     fi
 
     mv ${2}/tmpdir/boot/* ${2}/
@@ -770,10 +770,11 @@ _chroot_to_live_squashfs ()
     _run_in_root_system $DEBG_TMP_DIR $DEBG_EXE_LIST
     unset_chroot_operation $DEBG_TMP_DIR
 
-    rm -rf ${DEBG_TMP_DIR}/boot
     for pers_path in $DEBG_PERSISTENCE_PATHS; do
         rm -rf ${DEBG_TMP_DIR}${pers_path}
     done
+
+    rm -rf ${DEBG_TMP_DIR}/boot/*
 
     mksquashfs $DEBG_TMP_DIR $DEBG_DST_PATH
 

@@ -15,7 +15,7 @@ debuild -b -us -uc
 
 mkdir -p /tmp/repo/pkg
 
-cp ../debian-generator_$(dpkg-parsechangelog -l debian/changelog -S Version)_all.deb /tmp/repo/pkg
+cp ../debgen_$(dpkg-parsechangelog -l debian/changelog -S Version)_all.deb /tmp/repo/pkg
 
 cd /tmp/repo
 apt-ftparchive packages pkg > pkg/Packages
@@ -27,7 +27,7 @@ echo "deb [trusted=yes] file:///tmp/repo/ pkg/" > /etc/apt/sources.list.d/debgtm
 
 apt update
 
-apt -y install debian-generator
+apt -y install debgen
 
 TEST_CHROOT_PATH=./test_chroot
 
@@ -62,6 +62,12 @@ EOF
 debgen chroot $TEST_CHROOT_PATH systemctl enable getty@ttyS0.service
 
 debgen pc-flash -s $TEST_CHROOT_PATH -d ${TEST_CHROOT_PATH}.img
+
+if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
+    echo "\n\n\nEnvironment is not clean (loop device bound on destination image)\n\n"
+else
+    echo "Loop device unmapped successfully from destination file"
+fi
 
 cat <<EOF > /tmp/debg_expect_test
 #!/usr/bin/expect -f

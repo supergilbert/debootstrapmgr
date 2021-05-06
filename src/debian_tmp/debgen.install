@@ -3,6 +3,7 @@ src/diskhdr.py usr/lib/debgen
 src/functions.sh usr/lib/debgen
 src/functions_chroot.sh usr/lib/debgen
 src/functions_flash.sh usr/lib/debgen
+src/grub_stage2_eltorito usr/lib/debgen
 src/wrapper/debgen usr/bin
 src/wrapper/diskhdr usr/bin
 tmp/_debgen usr/share/zsh/vendor-completions/

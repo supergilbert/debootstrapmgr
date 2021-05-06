@@ -10,7 +10,8 @@ DEFAULT_LIVE_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
-                    \"volname\": \"persistence\"}
+                    \"volname\": \"persistence\"
+                }
             ]
         }
     ],
@@ -409,7 +410,9 @@ EOF
 
     # End of grub installation
 
+    echo_notify "Synchronizing cached write ..."
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
+    echo_notify "Cached write synchronization done"
 
     if [ -z "$DEBG_JSON_ARG" ]; then
         rm -f $DEBG_JSON
@@ -482,15 +485,94 @@ boot
 EOF
     # End of boot setup
 
+    echo_notify "Synchronizing cached write ..."
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
+    echo_notify "Cached write synchronization done"
 
     rm -rf $DEBG_TMP_DIR $DEBG_JSON
     unset_trap
 }
 
+_handle_flash_iso_arg ()
+{
+    DEBG_LIVESYS_SYNOPSIS="\
+Usage: $DEBG_NAME $DEBG_CMD_NAME [OPTIONS]
+  Convert a chroot to a live system an flash it to a block device or a file.
+
+OPTIONS:
+  -a <PKG>, --add-package=<PKG> Add following debian package to the image
+  -d <DST>, --destination <DST> Destination path
+  -e <EXE>, --exec=<EXE>        Run executable into the new system
+  -h, --help                    Display this help
+  -i, --install-deb                  Add debian file to install
+  -s <SRC>, --source=<SRC>      Source chroot directory
+"
+
+    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:d:e:hi:s:' -l 'add-package:,destination:,exec:,help,install-deb:,source:' -- "$@")
+    #Bad arguments
+    if [ $? -ne 0 ]; then
+        echo_err "Bad arguments.\n"
+        exit 2
+    fi
+    eval set -- "$OPTS";
+    while true; do
+        case "$1" in
+            '-a'|'--add-package')
+                shift
+                DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
+                shift
+                ;;
+            '-d'|'--destination')
+                shift
+                DEBG_DST_PATH="$1"
+                shift
+                ;;
+            '-e'|'--executable')
+                shift
+                DEBG_EXE_LIST="$DEBG_EXE_LIST $1"
+                shift
+                ;;
+            '-h'|'--help')
+                echo "$DEBG_LIVESYS_SYNOPSIS"
+                exit 0
+                ;;
+            '-i'|'--install-deb')
+                shift
+                DEBG_DEB_PKGS="$DEBG_DEB_PKGS $1"
+                shift
+                ;;
+            '-s'|'--source')
+                shift
+                DEBG_SRC_PATH="$1"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                echo "$DEBG_LIVESYS_SYNOPSIS"
+                echo_die 1 "Wrong argument $1"
+                ;;
+        esac
+    done
+
+    if [ -z "$DEBG_DST_PATH" ]; then
+        echo "$DEBG_LIVESYS_SYNOPSIS"
+        echo_die 1 "Destination is mandatory"
+    fi
+
+    if [ -n "$DEBG_SRC_PATH" ]; then
+        if [ ! -d "$DEBG_SRC_PATH" ]; then
+            echo "$DEBG_LIVESYS_SYNOPSIS"
+            echo_die 1 "$DEBG_SRC_PATH chroot source is not a directory"
+        fi
+    fi
+}
+
 _flash_pc_iso ()
 {
-    _handle_dir_to_livesys_args "$@"
+    _handle_flash_iso_arg "$@"
 
     echo_notify "Generating live system"
     DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_livesys_dir)"
@@ -564,7 +646,9 @@ _flash_rpi ()
 
     _dest_format_mount_copy_n_set_trap
 
+    echo_notify "Synchronizing cached write ..."
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
+    echo_notify "Cached write synchronization done"
 
     if [ -z "$DEBG_JSON_ARG" ]; then
         rm -f $DEBG_JSON
@@ -624,7 +708,9 @@ live-media=/dev/mmcblk0p1 rootwait cma=512M boot=live components persistence
 EOF
     # End of boot setup
 
+    echo_notify "Synchronizing cached write ..."
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
+    echo_notify "Cached write synchronization done"
 
     rm -rf $DEBG_TMP_DIR $DEBG_JSON
     unset_trap
