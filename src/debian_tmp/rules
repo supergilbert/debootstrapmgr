@@ -19,8 +19,8 @@
 
 # Hack to keep name coherence in directory completions
 override_dh_auto_build:
-	mkdir tmp; cp src/completions/debgen.zsh tmp/_debgen
-
+	cp -f src/completions/debgen.zsh debian/_debgen
+	cp -f LICENSE.txt debian/copyright
 
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )

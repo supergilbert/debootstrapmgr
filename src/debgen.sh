@@ -2,7 +2,7 @@
 
 set -e
 
-if [ -n "$DEBUG_DEBG" -o -n "$DEBG_DEBUG" ]; then
+if [ -n "$DEBUG_DEBGEN" -o -n "$DEBGEN_DEBUG" ]; then
     set -x
 fi
 

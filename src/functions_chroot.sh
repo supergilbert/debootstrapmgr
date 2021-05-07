@@ -1,5 +1,3 @@
-#!/bin/sh
-
 . ${DEBG_CURRENT_DIR}/functions.sh
 
 _run_in_root_system ()

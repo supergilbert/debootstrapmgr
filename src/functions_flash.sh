@@ -1,5 +1,3 @@
-#!/bin/sh
-
 . ${DEBG_CURRENT_DIR}/functions.sh
 
 DEFAULT_LIVE_JSON="\

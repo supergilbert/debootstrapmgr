@@ -8,10 +8,8 @@ apt -y upgrade
 
 apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
-cp -R src/debian_tmp ./debian
-cp debian/no_qemu_version_control debian/control
-
-debuild -b -us -uc
+./make_deb.sh debian_no_qemu_version
+./make_deb.sh debuild
 
 mkdir -p /tmp/repo/pkg
 

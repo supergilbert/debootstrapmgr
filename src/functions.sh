@@ -1,5 +1,3 @@
-#!/bin/sh
-
 echo_error ()
 {
     echo "\033[31m$@\033[0m" >&2
