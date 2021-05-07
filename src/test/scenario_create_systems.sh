@@ -44,7 +44,7 @@ log_stape ()
 log_stape "\n\n*** Test rpi generation ***"
 
 log_stape "Generating rpi chroot"
-debgen rpi-debootstrap -C XXXAPTCACHERXXX -d ${TEST_CHROOT_PATH}
+debgen rpi-chroot -C XXXAPTCACHERXXX -d ${TEST_CHROOT_PATH}
 cp /root/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH /root/run_test.sh
 
@@ -74,7 +74,7 @@ rm -rf ${TEST_CHROOT_PATH}
 log_stape "\n\n*** Test pc generation ***"
 
 log_stape "Generating pc chroot"
-debgen pc-debootstrap -d ${TEST_CHROOT_PATH} -r XXXAPTCACHERXXX/ftp.free.fr/debian
+debgen pc-chroot -d ${TEST_CHROOT_PATH} -r XXXAPTCACHERXXX/ftp.free.fr/debian
 mkdir -p ${TEST_CHROOT_PATH}/usr/local/share/debgen_test
 cp /root/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/usr/local/share/debgen_test/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH /usr/local/share/debgen_test/run_test.sh

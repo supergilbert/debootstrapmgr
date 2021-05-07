@@ -47,7 +47,7 @@ EOF
 
 if [ ! -d ${TEST_CHROOT_PATH} ]; then
     # need qemu-user-static >= 1:5.0.4 to run rpi emulation with "raspi-copy-n-..." package installed (bullseye dist (currently unstable version) do the hack)
-    debgen pc-debootstrap -d $TEST_CHROOT_PATH -r ${DEBGEN_APT_CACHER}/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc -i $PKGPATH
+    debgen pc-chroot -d $TEST_CHROOT_PATH -r ${DEBGEN_APT_CACHER}/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc -i $PKGPATH
     cp ${SRCDIR}/src/test/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root
     sed "s/XXXAPTCACHERXXX/${DEBGEN_APT_CACHER}/" ${SRCDIR}/src/test/scenario_create_systems.sh > ${TEST_CHROOT_PATH}/root/run_test.sh
     chmod +x ${TEST_CHROOT_PATH}/root/run_test.sh

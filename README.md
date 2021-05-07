@@ -34,8 +34,8 @@ qemu-system-x86
 
     Chroot commands
 
-      pc-debootstrap  Use debootstrap to generate a default pc chroot
-      rpi-debootstrap Use debootstrap to generate a default rpi chroot
+      pc-chroot       Use debootstrap to generate a default pc chroot
+      rpi-chroot      Use debootstrap to generate a default rpi chroot
                       (Need armhf architecture dpkg --print-foreign-architectures)
       chroot-exec     Exec command in a chroot disabling its service start
       chroot          Run chroot (in the specified directory) and disabling its
@@ -54,5 +54,6 @@ qemu-system-x86
 
       pc-flash
       pc-flash-live
+      pc-flash-iso
       rpi-flash
       rpi-flash-live

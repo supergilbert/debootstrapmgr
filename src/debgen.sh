@@ -29,8 +29,8 @@ Commands:
 
 Chroot commands
 
-  pc-debootstrap  Use debootstrap to generate a default pc chroot
-  rpi-debootstrap Use debootstrap to generate a default rpi chroot
+  pc-chroot       Use debootstrap to generate a default pc chroot
+  rpi-chroot      Use debootstrap to generate a default rpi chroot
                   (Need armhf architecture dpkg --print-foreign-architectures)
   chroot-exec     Exec command in a chroot disabling its service start
   chroot          Run chroot (in the specified directory) and disabling its
@@ -38,7 +38,7 @@ Chroot commands
   mklive-squashfs Generate a live system squashfs file
 
 Dump commands
- Output default json disk architecture
+  Output default json disk architecture
 
   dump-default-pc-json
   dump-default-rpi-json
@@ -65,13 +65,13 @@ DEBG_CMD_NAME=$1
 . ${DEBG_CURRENT_DIR}/functions_flash.sh
 
 case $DEBG_CMD_NAME in
-    "pc-debootstrap")
+    "pc-chroot")
         shift
         _debootstrap_pc "$@"
         echo_notify "Chroot generated"
         ;;
 
-    "rpi-debootstrap")
+    "rpi-chroot")
         shift
         _debootstrap_rpi "$@"
         echo_notify "Chroot generated"

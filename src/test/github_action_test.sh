@@ -34,7 +34,7 @@ if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
     exit 1
 fi
 
-debgen pc-debootstrap -d $TEST_CHROOT_PATH
+debgen pc-chroot -d $TEST_CHROOT_PATH
 
 cat <<EOF > ${TEST_CHROOT_PATH}/root/run_test.sh
 #!/bin/sh

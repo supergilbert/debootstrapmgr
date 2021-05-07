@@ -331,7 +331,7 @@ _flash_pc ()
     else
         mkdir ${DEBG_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
     fi
 
     # chroot installations
@@ -456,8 +456,8 @@ _flash_pc_live ()
         DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
         _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
     else
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
         _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
         rm -rf ${DEBG_TMP_DIR}/chroot
     fi
@@ -581,7 +581,7 @@ _flash_pc_iso ()
         DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
         _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
     else
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
         DEBG_CHROOT_KERNEL_VERSION=$(chroot ${DEBG_TMP_DIR}/chroot dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
         _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
         rm -rf ${DEBG_TMP_DIR}/chroot
@@ -624,7 +624,7 @@ _flash_rpi ()
     else
         mkdir ${DEBG_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
-        ${DEBG_CURRENT_DIR}/debgen.sh rpi-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh rpi-chroot -d ${DEBG_TMP_DIR}/chroot
     fi
 
     if [ -n "$DEBG_ADD_PKG_LIST" -o -n "$DEBG_DEB_PKGS" -o -n "$DEBG_EXE_LIST" ]; then
@@ -671,7 +671,7 @@ _flash_rpi_live ()
         _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
     else
         mkdir ${DEBG_TMP_DIR}/chroot
-        ${DEBG_CURRENT_DIR}/debgen.sh rpi-debootstrap -d ${DEBG_TMP_DIR}/chroot
+        ${DEBG_CURRENT_DIR}/debgen.sh rpi-chroot -d ${DEBG_TMP_DIR}/chroot
         _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
         rm -rf ${DEBG_TMP_DIR}/chroot
     fi
