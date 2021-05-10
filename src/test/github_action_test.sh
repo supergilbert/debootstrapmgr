@@ -8,7 +8,7 @@ apt -y upgrade
 
 apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 
-./make_deb.sh debian-no-qemu-version
+./make_deb.sh debian-no-qemu-version-dep
 ./make_deb.sh build
 
 mkdir -p /tmp/repo/pkg
