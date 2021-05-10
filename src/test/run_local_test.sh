@@ -7,7 +7,7 @@ fi
 
 if [ -z "$DEBGEN_APT_CACHER" ]; then
     echo "\
-Need DEBGEN_APT_CACHER environent variable (ADDR:PORT).\n\
+Need DEBGEN_APT_CACHER environent variable (ADDR:PORT).
 (... and an apt-cacher service)"
     exit 1
 fi
@@ -18,7 +18,7 @@ export DEBGEN_DEBUG=ON
 
 SRCDIR=$(realpath $(dirname $0)/../..)
 
-${SRCDIR}/make_deb.sh debuild
+${SRCDIR}/make_deb.sh build
 PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
 
 TEST_CHROOT_PATH="/tmp/debgen_test_chroot_base"
