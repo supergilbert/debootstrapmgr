@@ -30,8 +30,8 @@ _install_deb_pkg ()
         cd ${_CHROOT_DIR}/tmp/pkg_repo
         apt-ftparchive packages pkg > pkg/Packages
         cd -
-        DEBG_ARCHITECTURE="$(chroot $_CHROOT_DIR dpkg --print-architecture)"
-        echo "Archive: debgtmp\nArchitecture: $DEBG_ARCHITECTURE" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
+        DEBG_CHROOT_ARCH="$(chroot $_CHROOT_DIR dpkg --print-architecture)"
+        echo "Archive: debgtmp\nArchitecture: $DEBG_CHROOT_ARCH" > ${_CHROOT_DIR}/tmp/pkg_repo/Release
         echo "deb [trusted=yes] file:///tmp/pkg_repo/ pkg/" > ${_CHROOT_DIR}/etc/apt/sources.list.d/debgtmp.list
         cat <<EOF > ${_CHROOT_DIR}/etc/apt/preferences.d/debgtmp.pref
 Package: *
@@ -162,6 +162,7 @@ Usage: $DEBG_NAME $DEBG_CMD_NAME [OPTIONS]
   Generate a debian chroot with deboostrap.
 
 OPTIONS:
+  -A --architecture                  Set the target architecture
   -a, --add-package=<PKG>            Add following debian package to the image
   -C, --apt-cacher=<APT_CACHE_ADDR>  Use an temporary apt cache proxy
   -d <DEST>, --destination <DEST>    Destination file (tar gzip)
@@ -179,7 +180,7 @@ OPTIONS:
   -h, --help                         Display this help
 "
 
-    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:C:d:D:e:hH:i:np:r:s' -l 'add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,install-deb:,no-default-pkg,password:,repo:,sysv' -- "$@")
+    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'A:a:C:d:D:e:hH:i:np:r:s' -l 'architecture:,add-package:,apt-cacher:,destination:,distribution:,exec:,help,hostname:,install-deb:,no-default-pkg,password:,repo:,sysv' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -188,6 +189,11 @@ OPTIONS:
     eval set -- "$OPTS";
     while true; do
         case "$1" in
+            '-A'|'--architecture')
+                shift
+                DEBG_TARGET_ARCH="$1"
+                shift
+                ;;
             '-a'|'--add-package')
                 shift
                 DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
@@ -305,6 +311,10 @@ _debootstrap_pc ()
 {
     _handle_debootstrap_params "$@"
 
+    if [ -z "$DEBG_TARGET_ARCH" ]; then
+        DEBG_TARGET_ARCH=amd64
+    fi
+
     mkdir -p $DEBG_CHROOT_DIR
     # The filesystem root directory must let users read and execute
     chmod 755 "$DEBG_CHROOT_DIR"
@@ -342,7 +352,7 @@ _debootstrap_pc ()
 
     set_trap "trap_cleanup"
 
-    if ! debootstrap --arch=amd64 --components="main,contrib,non-free" --include="$DEBG_INCLUDE_PKG" --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
+    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="main,contrib,non-free" --include="$DEBG_INCLUDE_PKG" --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
         set +e
         unset_chroot_operation ${DEBG_CHROOT_DIR}
         unset_trap
@@ -358,10 +368,25 @@ LANG="C"
 LANGUAGE="C"
 EOF
 
+    case "$DEBG_TARGET_ARCH" in
+        "amd64")
+            DEBG_KERNEL_PKG=linux-image-amd64
+            shift
+            ;;
+        "i386")
+            DEBG_KERNEL_PKG=linux-image-686
+            shift
+            ;;
+        *)
+            DEBG_KERNEL_PKG=linux-image-generic
+            shift
+            ;;
+    esac
+
     if [ -z "$DEBG_NO_DEFAULT_PKG" ]; then
         chroot "$DEBG_CHROOT_DIR" /usr/bin/apt-get update
         chroot "$DEBG_CHROOT_DIR" /usr/bin/apt-get --allow-unauthenticated -y upgrade
-        chroot "$DEBG_CHROOT_DIR" /usr/bin/apt-get --allow-unauthenticated -y install linux-image-amd64 $DEBG_DEFAULT_BASE_PACKAGES
+        chroot "$DEBG_CHROOT_DIR" /usr/bin/apt-get --allow-unauthenticated -y install $DEBG_KERNEL_PKG $DEBG_DEFAULT_BASE_PACKAGES
     fi
 
     echo "root:${DEBG_ROOT_PASSWORD}" | chroot "$DEBG_CHROOT_DIR" /usr/sbin/chpasswd
@@ -384,6 +409,14 @@ EOF
 _debootstrap_rpi ()
 {
     _handle_debootstrap_params "$@"
+
+    if [ -z "$DEBG_TARGET_ARCH" ]; then
+        DEBG_TARGET_ARCH=armhf
+    else
+        if [ "$DEBG_TARGET_ARCH" != "armhf" ]; then
+            echo_die 1 "rpi creation support only one architecture (armhf)"
+        fi
+    fi
 
     mkdir -p $DEBG_CHROOT_DIR
     # The filesystem root directory must let users read and execute
@@ -427,7 +460,7 @@ _debootstrap_rpi ()
 
     set_trap "trap_cleanup"
 
-    if ! debootstrap --arch=armhf --components="main,contrib,non-free,rpi" --include="$DEBG_INCLUDE_PKG" --no-check-gpg --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
+    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="main,contrib,non-free,rpi" --include="$DEBG_INCLUDE_PKG" --no-check-gpg --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
         set +e
         trap_cleanup
         unset_trap

@@ -121,7 +121,7 @@ OPTIONS:
   -a <PKG>, --add-package=<PKG> Add following debian package to the image
   -d <DST>, --destination=<DST> Destination path
   -e <EXE>, --exec=<EXE>        Run executable into the new system
-  -E, --efi                     Install grub-efi-amd64 instead of grub-pc
+  -E, --efi                     Install grub-efi instead of grub-pc
   -i, --install-deb             Add debian file to install
   -j <JSON>, --json <JSON>      Specify a json filesystem architecture
   -g, --gpt                     Setup an \"GPT\" partition table
@@ -338,8 +338,15 @@ _flash_pc ()
     setup_chroot_operation ${DEBG_TMP_DIR}/chroot
 
     if [ -n "$DEBG_GRUBEFI" ]; then
+        DEBG_CHROOT_ARCH="$(chroot ${DEBG_TMP_DIR}/chroot dpkg --print-architecture)"
+        if [ "$DEBG_CHROOT_ARCH" = "amd64" ]; then
+            DEBG_GRUB_EFI_PKG="grub-efi-amd64 grub-efi-amd64-signed"
+        else
+            DEBG_GRUB_EFI_PKG="grub-efi-ia32 grub-efi-ia32-signed"
+        fi
+
         chroot ${DEBG_TMP_DIR}/chroot apt update
-        chroot ${DEBG_TMP_DIR}/chroot apt -y install grub-efi-amd64 grub-efi-amd64-signed
+        chroot ${DEBG_TMP_DIR}/chroot apt -y install $DEBG_GRUB_EFI_PKG
     else
         chroot ${DEBG_TMP_DIR}/chroot apt update
         chroot ${DEBG_TMP_DIR}/chroot apt -y install grub-pc
@@ -390,7 +397,11 @@ EOF
         _debg_install_tmp_grub_cfg
 
         echo_notify "Installing grub efi"
-        chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force || true
+        if [ "$DEBG_CHROOT_ARCH" = "amd64" ]; then
+            chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force
+        else
+            chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=i386-efi --boot-directory=/boot --efi-directory=/boot --force
+        fi
         chroot ${DEBG_TMP_DIR}/mnt update-grub || true
         echo_notify "grub installed"
     else
