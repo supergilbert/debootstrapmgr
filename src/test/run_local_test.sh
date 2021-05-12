@@ -98,7 +98,7 @@ spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_QEMU_SDA} -drive 
 expect {
  "DEBG_ERROR" { send_error "\nSystems creation kvm failed creation\n\n" ; exit 1 }
  timeout { send_error "\nSystems creation kvm timed out\n\n" ; exit 1 }
- eof { send_log "\nSystems creation ok\n\n" }
+ eof { send_log "\nSystems creation vm ended\n\n" }
 }
 
 
@@ -110,14 +110,14 @@ set timeout 180
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_QEMU_SDB}
 expect {
  timeout { send_error "\nSystem boot kvm timed out\n\n" ; exit 1 }
- eof { send_error "\nSystems unexpected end\n\n"; exit 1 }
+ eof { send_error "\nGenerated systems unexpected end\n\n"; exit 1 }
  "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; close }
 }
 
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_QEMU_SDC}
 expect {
  timeout { send_error "\nSystem boot kvm timed out\n\n" ; exit 1 }
- eof { send_error "\nSystems unexpected end\n\n"; exit 1 }
+ eof { send_error "\nGenerated systems unexpected end\n\n"; exit 1 }
  "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; exit 0 }
 }
 EOF

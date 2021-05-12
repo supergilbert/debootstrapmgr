@@ -106,6 +106,8 @@ setup_chroot_operation ()
 
     setup_chroot_mountpoint $_CHROOT_PATH
 
+    cp -f /etc/resolv.conf  ${_CHROOT_PATH}/etc/resolv.conf
+
     echo_notify "Prevent service start with policy-rc.d"
     cat <<EOF > ${_CHROOT_PATH}/usr/sbin/policy-rc.d
 #!/bin/sh
@@ -130,6 +132,8 @@ unset_chroot_operation ()
         rm -f ${_CHROOT_PATH}/usr/bin/ischroot
         chroot "$_CHROOT_PATH" dpkg-divert --rename --remove /usr/bin/ischroot
     fi
+
+    echo > ${_CHROOT_PATH}/etc/resolv.conf
 
     unset_chroot_mountpoint $_CHROOT_PATH
 
@@ -634,29 +638,19 @@ Usage: $DEBG_NAME $DEBG_CMD_NAME <CHROOT_DIR>
 
 _chroot_to_livesys_dir ()
 {
-    if [ 2 -ne "$#" ]; then
-        echo "$DEBG_LIVESYS_SYNOPSIS"
-        echo_die 1 "rpi_dir_to_img need 2 arguments."
-    fi
-    if [ ! -d "$1" -o ! -d "$2" ]; then
-        echo "$DEBG_LIVESYS_SYNOPSIS"
-        echo_die 1 "Need a directories as arguments"
+    if [ ! -d "${DEBG_TMP_DIR}/chroot" -o ! -d "${DEBG_TMP_DIR}/live" ]; then
+        echo_die 1 "tmp directories missing"
     fi
 
     echo_notify "Generating live directory in $DEBG_DST_PATH"
-
-    echo_notify "Copying chroot $1 to $2 build directory ..."
-    mkdir -p ${2}/tmpdir
-    rsync -ad ${1}/* ${2}/tmpdir/
-    echo_notify "Copy done"
 
     echo_notify "Generating live-boot initrd and filesquahfs ..."
 
     if [ "$DEBG_TYPE" = "RPI" ]; then
         # Hack for raspbian kernel version handling
         INITRAMFS_GEN_SH=$(mktemp --suffix=_initramfs_gen.sh)
-        set_trap "unset_chroot_operation ${2}/tmpdir; rm -rf INITRAMFS_GEN_SH"
-        setup_chroot_operation ${2}/tmpdir
+        set_trap "unset_chroot_operation ${DEBG_TMP_DIR}/chroot; rm -rf INITRAMFS_GEN_SH"
+        setup_chroot_operation ${DEBG_TMP_DIR}/chroot
         cat <<EOF > $INITRAMFS_GEN_SH
 #!/bin/sh -ex
 
@@ -665,41 +659,41 @@ for kversion in \$(ls /lib/modules); do
 done
 EOF
         chmod +x $INITRAMFS_GEN_SH
-        _chroot_add_pkg ${2}/tmpdir live-boot
-        _run_in_root_system ${2}/tmpdir $INITRAMFS_GEN_SH
+        _chroot_add_pkg ${DEBG_TMP_DIR}/chroot live-boot
+        _run_in_root_system ${DEBG_TMP_DIR}/chroot $INITRAMFS_GEN_SH
         rm -f $INITRAMFS_GEN_SH
-        unset_chroot_operation ${2}/tmpdir
+        unset_chroot_operation ${DEBG_TMP_DIR}/chroot
         unset_trap
     else
-        set_trap "unset_chroot_operation ${2}/tmpdir"
-        setup_chroot_operation ${2}/tmpdir
+        set_trap "unset_chroot_operation ${DEBG_TMP_DIR}/chroot"
+        setup_chroot_operation ${DEBG_TMP_DIR}/chroot
         # live-boot installation automatically run update-initramfs
-        _chroot_add_pkg  ${2}/tmpdir live-boot
-        unset_chroot_operation ${2}/tmpdir
+        _chroot_add_pkg  ${DEBG_TMP_DIR}/chroot live-boot
+        unset_chroot_operation ${DEBG_TMP_DIR}/chroot
         unset_trap
     fi
 
     if [ -n "$DEBG_ADD_PKG_LIST" -o -n "$DEBG_DEB_PKGS" -o -n "$DEBG_EXE_LIST" ]; then
-        setup_chroot_operation ${2}/tmpdir
-        _chroot_add_pkg ${2}/tmpdir $DEBG_ADD_PKG_LIST
-        _install_deb_pkg ${2}/tmpdir $DEBG_DEB_PKGS
-        _run_in_root_system ${2}/tmpdir $DEBG_EXE_LIST
-        unset_chroot_operation ${2}/tmpdir
+        setup_chroot_operation ${DEBG_TMP_DIR}/chroot
+        _chroot_add_pkg ${DEBG_TMP_DIR}/chroot $DEBG_ADD_PKG_LIST
+        _install_deb_pkg ${DEBG_TMP_DIR}/chroot $DEBG_DEB_PKGS
+        _run_in_root_system ${DEBG_TMP_DIR}/chroot $DEBG_EXE_LIST
+        unset_chroot_operation ${DEBG_TMP_DIR}/chroot
     fi
 
     if [ -n "$DEBG_PERSISTENCE_PATHS" ]; then
-        mkdir ${2}/persistence
+        mkdir ${DEBG_TMP_DIR}/live/persistence
         for ppath in $DEBG_PERSISTENCE_PATHS; do
-            mv ${2}/tmpdir${ppath} ${2}/persistence
-            echo "$ppath source=persistence/$(basename $ppath)" >> ${2}/persistence.conf
+            mv ${DEBG_TMP_DIR}/chroot${ppath} ${DEBG_TMP_DIR}/live/persistence
+            echo "$ppath source=persistence/$(basename $ppath)" >> ${DEBG_TMP_DIR}/live/persistence.conf
         done
     fi
 
-    mv ${2}/tmpdir/boot/* ${2}/
+    mv ${DEBG_TMP_DIR}/chroot/boot/* ${DEBG_TMP_DIR}/live
 
-    mkdir ${2}/live
-    mksquashfs ${2}/tmpdir ${2}/live/filesystem.squashfs
-    rm -rf ${2}/tmpdir
+    mkdir ${DEBG_TMP_DIR}/live/live
+    mksquashfs ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live/live/filesystem.squashfs
+    rm -rf ${DEBG_TMP_DIR}/chroot
 }
 
 _handle_dir_to_livesys_args ()

@@ -212,9 +212,9 @@ OPTIONS:
     fi
 
     if [ -n "$DEBG_SRC_PATH" ]; then
-        if [ ! -d "$DEBG_SRC_PATH" ]; then
+        if [ ! -d "$DEBG_SRC_PATH" -a ! -f "$DEBG_SRC_PATH" ]; then
             echo "$DEBG_PC_FLASHIMG_SYNOPSIS"
-            echo_die 1 "$DEBG_SRC_PATH chroot source is not a directory"
+            echo_die 1 "$DEBG_SRC_PATH chroot source is not a directory or a regular flie"
         fi
     fi
 
@@ -315,6 +315,18 @@ _dest_format_mount_copy_n_set_trap ()
     rm -rf ${DEBG_TMP_DIR}/chroot
 }
 
+_handle_flash_src_path_to_tmp_dir ()
+{
+    echo_notify "Copying files ..."
+    mkdir ${DEBG_TMP_DIR}/chroot
+    if [ -d "$DEBG_SRC_PATH" ]; then
+        rsync -ad ${DEBG_SRC_PATH}/* ${DEBG_TMP_DIR}/chroot/
+    else
+        tar -xf ${DEBG_SRC_PATH} -C ${DEBG_TMP_DIR}/chroot/
+    fi
+    echo_notify "Files copy done"
+}
+
 _flash_pc ()
 {
     _handle_flash_args "$@"
@@ -323,11 +335,9 @@ _flash_pc ()
 
     set_trap "unset_chroot_operation ${DEBG_TMP_DIR}/chroot; rm -rf $DEBG_TMP_DIR"
 
+    mkdir ${DEBG_TMP_DIR}/mnt
     if [ -n "$DEBG_SRC_PATH" ]; then
-        mkdir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/mnt
-        echo_notify "Copying files ..."
-        rsync -ad ${DEBG_SRC_PATH}/* ${DEBG_TMP_DIR}/chroot
-        echo_notify "Files copy done"
+        _handle_flash_src_path_to_tmp_dir
     else
         mkdir ${DEBG_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
@@ -459,17 +469,18 @@ _flash_pc_live ()
     _handle_dir_to_livesys_args "$@"
 
     echo_notify "Generating live system"
+
     DEBG_TMP_DIR="$(mktemp -d --suffix=_debg_livesys_dir)"
     mkdir ${DEBG_TMP_DIR}/live ${DEBG_TMP_DIR}/mnt
 
     # nb: _chroot_to_livesys_dir use set_trap
     if [ -n "$DEBG_SRC_PATH" ]; then
-        DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
-        _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
+        _handle_flash_src_path_to_tmp_dir
+        DEBG_CHROOT_KERNEL_VERSION=$(chroot ${DEBG_TMP_DIR}/chroot dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
+        _chroot_to_livesys_dir
     else
         ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
-        _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
+        _chroot_to_livesys_dir
         rm -rf ${DEBG_TMP_DIR}/chroot
     fi
 
@@ -572,7 +583,7 @@ OPTIONS:
     fi
 
     if [ -n "$DEBG_SRC_PATH" ]; then
-        if [ ! -d "$DEBG_SRC_PATH" ]; then
+        if [ ! -d "$DEBG_SRC_PATH" -a ! -f "$DEBG_SRC_PATH" ]; then
             echo "$DEBG_LIVESYS_SYNOPSIS"
             echo_die 1 "$DEBG_SRC_PATH chroot source is not a directory"
         fi
@@ -589,13 +600,13 @@ _flash_pc_iso ()
 
     # nb: _chroot_to_livesys_dir use set_trap
     if [ -n "$DEBG_SRC_PATH" ]; then
-        DEBG_CHROOT_KERNEL_VERSION=$(chroot $DEBG_SRC_PATH dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
-        _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
+        _handle_flash_src_path_to_tmp_dir
+        DEBG_CHROOT_KERNEL_VERSION=$(chroot ${DEBG_TMP_DIR}/chroot dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
+        _chroot_to_livesys_dir
     else
         ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
         DEBG_CHROOT_KERNEL_VERSION=$(chroot ${DEBG_TMP_DIR}/chroot dpkg-query -f '${Depends}' -W "linux-image-$(dpkg --print-architecture)" | cut -f 1 -d' ' | sed "s/linux-image-//")
-        _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
-        rm -rf ${DEBG_TMP_DIR}/chroot
+        _chroot_to_livesys_dir
     fi
 
     # Setup Boot
@@ -679,11 +690,11 @@ _flash_rpi_live ()
 
     # nb: _chroot_to_livesys_dir use set_trap
     if [ -n "$DEBG_SRC_PATH" ]; then
-        _chroot_to_livesys_dir $DEBG_SRC_PATH ${DEBG_TMP_DIR}/live
+        _handle_flash_src_path_to_tmp_dir
+        _chroot_to_livesys_dir
     else
-        mkdir ${DEBG_TMP_DIR}/chroot
         ${DEBG_CURRENT_DIR}/debgen.sh rpi-chroot -d ${DEBG_TMP_DIR}/chroot
-        _chroot_to_livesys_dir ${DEBG_TMP_DIR}/chroot ${DEBG_TMP_DIR}/live
+        _chroot_to_livesys_dir
         rm -rf ${DEBG_TMP_DIR}/chroot
     fi
 
