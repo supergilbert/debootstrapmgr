@@ -19,7 +19,7 @@ export DEBGEN_DEBUG=ON
 SRCDIR=$(realpath $(dirname $0)/../..)
 
 ${SRCDIR}/make_deb.sh build
-PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
+PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_amd64.deb
 
 TEST_CHROOT_PATH="/tmp/debgen_test_chroot_base"
 TEST_TMP_DIR="$(mktemp -d --suffix _debgen_test)"
@@ -74,7 +74,7 @@ debgen pc-flash -S 10 -s $TEST_CHROOT_PATH -d $TEST_QEMU_SDA -i $PKGPATH -e $TMP
 
 rm $TMP_GRUB_CFG
 
-trap "rm -f ${TEST_TMP_DIR}" INT TERM EXIT
+trap "rm -rf ${TEST_TMP_DIR}" INT TERM EXIT
 
 truncate -s 5G $TEST_QEMU_SDB
 truncate -s 5G $TEST_QEMU_SDC
@@ -109,14 +109,16 @@ set timeout 180
 
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_QEMU_SDB}
 expect {
- "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; close }
  timeout { send_error "\nSystem boot kvm timed out\n\n" ; exit 1 }
+ eof { send_error "\nSystems unexpected end\n\n"; exit 1 }
+ "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; close }
 }
 
 spawn kvm -m 2G $DEBG_KVM_OPTION -drive format=raw,file=${TEST_QEMU_SDC}
 expect {
- "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; exit 0 }
  timeout { send_error "\nSystem boot kvm timed out\n\n" ; exit 1 }
+ eof { send_error "\nSystems unexpected end\n\n"; exit 1 }
+ "DEBG OK" { send_log "\nSystem boot kvm ok\n\n" ; exit 0 }
 }
 EOF
 chmod +x $TEST_EXPECT_SCRIPT

@@ -530,10 +530,11 @@ OPTIONS:
   -a, --add-package=<PKG>         Add following debian package
   -d <DEST>, --destination <DEST> Destination file (tar gzip)
   -e, --exec=<EXE>                Run executable
+  -i, --install-deb                  Add debian file to install
   -h, --help                      Display this help
 "
 
-    OPTS=$(getopt -n chroot-exec -o 'a:d:e:h' -l 'add-package:,destination:,exec:,help' -- "$@")
+    OPTS=$(getopt -n chroot-exec -o 'a:d:e:hi:' -l 'add-package:,destination:,exec:,help,install-deb:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -557,6 +558,12 @@ OPTIONS:
             '-e'|'--executable')
                 shift
                 DEBG_EXE_LIST="$DEBG_EXE_LIST $1"
+                shift
+                ;;
+
+            '-i'|'--install-deb')
+                shift
+                DEBG_DEB_PKGS="$DEBG_DEB_PKGS $1"
                 shift
                 ;;
 

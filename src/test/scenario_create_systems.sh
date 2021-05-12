@@ -12,7 +12,7 @@ apt update
 
 TEST_CHROOT_PATH="/tmp/debg_test_chroot"
 
-export DEBG_DEBUG=ON
+export DEBGEN_DEBUG=ON
 
 add_ttyS0_service ()
 {
@@ -103,6 +103,7 @@ diskhdr /tmp/dmgr_live.json umount 0 /dev/sdb /mnt
 
 log_stape "Generating pc system in block device sdc"
 debgen pc-flash -s ${TEST_CHROOT_PATH} -d /dev/sdc
+
 
 
 #END

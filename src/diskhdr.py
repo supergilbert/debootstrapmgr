@@ -76,16 +76,7 @@ def get_mo_size(size_str):
         if size_str.endswith(suffix):
             return int(size_str[:-len(suffix)])
 
-    return int(size_str)
-
-def dkhr_check_partitions_size(partitions):
-    infinite_size_found = False
-    for partinfo in partitions:
-        if not "size" in partinfo.keys():
-            if infinite_size_found:
-                return False
-            infinite_size_found = True
-    return True
+    raise DiskHandlerException("get_mo_size: No size suffix found")
 
 def dkhr_check_disk_repr(disk_repr):
     if not "table" in disk_repr.keys():
@@ -114,16 +105,6 @@ def dkhr_check_disk_repr(disk_repr):
     for part in disk_repr["parts"]:
         if not "type" in part.keys():
             DiskHandlerException("check part: the key 'type' missing")
-
-    if not dkhr_check_partitions_size(disk_repr["parts"]):
-        raise DiskHandlerException("check disk: Only one partition can have infinite size (some size missing)")
-
-def dkhr_get_min_size(disk_repr):
-    size_in_mo = 0
-    for partinfo in disk_repr["parts"]:
-        if "size" in partinfo.keys():
-            size_in_mo += get_mo_size(partinfo["size"])
-    return size_in_mo
 
 def check_disks_repr_list(disks_list):
     if len(disks_list) == 0:
@@ -169,56 +150,78 @@ if len(sys.argv) < 3:
 if os.geteuid() != 0:
     die(1, "Commands need root privilegies")
 
+DST_BLOCK = 0
+DST_FILE = 1
+
+def check_dstpath(dstpath):
+    if not os.path.exists(dstpath):
+        raise DiskHandlerException("check_dstpath: %s does not exist" % dstpath)
+
+    mode = os.stat(dstpath).st_mode
+    if stat.S_ISREG(mode):
+        return DST_FILE
+    elif stat.S_ISBLK(mode):
+        return DST_BLOCK
+    else:
+        raise DiskHandlerException("check_dstpath: Unhandled type of file (%s)" % dstpath)
+
+def get_destination_mo_size(path_dst):
+    if check_dstpath(path_dst) == DST_FILE:
+        return int(subprocess.check_output("stat -c %s " + path_dst,
+                                           shell=True).replace(b"\n", b"")) / 1048576
+    else:
+        return int(subprocess.check_output("parted -s -m " + path_dst + " -- unit B print 2> /dev/null | grep " + path_dst + " | cut -d: -f 2",
+                                           shell=True).replace(b"\n", b"").replace(b"B", b"")) / 1048576
+
 def gen_parted_create_cmd(disk_repr, path_dst):
-    parted_cmd = "parted -s " + path_dst + " -- mktable " + disk_repr["table"]
-
-    last_offset = 0
-    part_idx = 0
+    # Fill missing size
     size_missing = False
-
+    part_missing_size = None
     for part in disk_repr["parts"]:
-        if "size" in part.keys():
-            # !!!!! Need a function
-            end_offset = last_offset + get_mo_size(part["size"])
-            if disk_repr["table"] == "msdos":
-                parted_cmd += " mkpart primary {type} {start} {end}".format(type=part["type"],
-                                                                            start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                            end="%dMB" % end_offset)
-            else:# if disk_repr["table"] == "gpt":
-                end_offset = last_offset + get_mo_size(part["size"])
-                if "partname" in part.keys():
-                    parted_cmd += " mkpart {partname} {type} {start} {end}".format(partname=part["partname"],
-                                                                                   type=part["type"],
-                                                                                   start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                                   end="%dMB" % end_offset)
-                else:
-                    parted_cmd += " mkpart {type} {start} {end}".format(type=part["type"],
-                                                                        start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                        end="%dMB" % end_offset)
-            last_offset = end_offset
-        else:
+        if not "size" in part.keys():
+            if size_missing == True:
+                raise DiskHandlerException("gen_parted_create_cmd: Missing partition size in more than one partition")
             size_missing = True
-            break
-        part_idx += 1
-
+            part_missing_size = part
     if size_missing:
-        if (len(disk_repr["parts"]) - 1) == part_idx:
-            if disk_repr["table"] == "msdos":
-                parted_cmd += " mkpart primary {type} {start} {end}".format(type=part["type"],
-                                                                            start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                            end="100%")
-            else:# if disk_repr["table"] == "gpt":
-                if "partname" in part.keys():
-                    parted_cmd += " mkpart {partname} {type} {start} {end}".format(partname=part["partname"],
-                                                                                   type=part["type"],
-                                                                                   start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                                   end="100%")
-                else:
-                    parted_cmd += " mkpart {type} {start} {end}".format(type=part["type"],
+        disk_size = get_destination_mo_size(path_dst)
+        enabled_size = 0
+        for part in disk_repr["parts"]:
+            if  part != part_missing_size:
+                enabled_size += get_mo_size(part["size"])
+        if disk_size < enabled_size:
+            raise DiskHandlerException("gen_parted_create_cmd: Disk size is to small to contain partitions (size > %dMO)" % enabled_size)
+        part_missing_size["size"] = "%dM" % (disk_size - enabled_size)
+
+    # Generate partition command
+    parted_cmd = "parted -s " + path_dst + " -- mktable " + disk_repr["table"]
+    last_offset = 0
+    last_partition = False
+    # !!! Need factorisation
+    if disk_repr["table"] == "msdos":
+        for part in disk_repr["parts"]:
+            if part == disk_repr["parts"][-1]:
+                last_partition = True
+            end_offset = last_offset + get_mo_size(part["size"])
+            parted_cmd += " mkpart primary {type} {start} {end}".format(type=part["type"],
                                                                         start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                        end="100%")
-        else:
-            raise DiskHandlerException("gen_parted_create_cmd: infinite partition not at end will coming")
+                                                                        end="%dMB" % end_offset if not last_partition else "100%")
+            last_offset = end_offset
+    else:# if disk_repr["table"] == "gpt":
+        for part in disk_repr["parts"]:
+            if part == disk_repr["parts"][-1]:
+                last_partition = True
+            end_offset = last_offset + get_mo_size(part["size"])
+            if "partname" in part.keys():
+                parted_cmd += " mkpart {partname} {type} {start} {end}".format(partname=part["partname"],
+                                                                               type=part["type"],
+                                                                               start="0%" if last_offset == 0 else "%dMB" % last_offset,
+                                                                               end="%dMB" % end_offset if not last_partition else "100%")
+            else:
+                parted_cmd += " mkpart {type} {start} {end}".format(type=part["type"],
+                                                                    start="0%" if last_offset == 0 else "%dMB" % last_offset,
+                                                                    end="%dMB" % end_offset if not last_partition else "100%")
+            last_offset = end_offset
     return parted_cmd
 
 def wait_path(path):
@@ -274,27 +277,6 @@ def kpartx_file(filepath):
     except:
         raise DiskHandlerException("kpartx_file: Unhandled error")
 
-DST_BLOCK = 0
-DST_FILE = 1
-
-def check_dstpath(dstpath):
-    if not os.path.exists(dstpath):
-        dstpath1 = os.path.realpath(dstpath + "1")
-        if not os.path.exists(dstpath1):
-            mode = os.stat(dstpath1).st_mode
-            if stat.S_ISBLK(mode):
-                return DST_BLOCK
-        raise DiskHandlerException("%s does not exist" % dstpath)
-
-    mode = os.stat(dstpath).st_mode
-    if stat.S_ISREG(mode):
-        return DST_FILE
-    elif stat.S_ISBLK(mode):
-        return DST_BLOCK
-    else:
-        raise DiskHandlerException("Unhandled type of file (%s)" % dstpath)
-
-
 def set_kpartx_if_needed(dst_path):
     "Return loop device number if destination is a file else return None"
     if check_dstpath(dst_path) == DST_FILE:
@@ -304,8 +286,6 @@ def set_kpartx_if_needed(dst_path):
 cmd_n_args = sys.argv[2:]
 system_repr_list = diskhdr_obj["systems"]
 disks_list = diskhdr_obj["disks"]
-
-using_kpartx = False
 
 def create_mountpoints(system_repr, disks_list, blk_prefix_list):
     if len(disks_list) != len(blk_prefix_list):
@@ -375,33 +355,25 @@ def dump_fstab(system_repr, disks_list, blk_prefix_list):
 
 command = cmd_n_args[0]
 if command == "part":
-    if len(cmd_n_args) > 2:
+    if len(cmd_n_args) < 2:
         log_out(SYNOPSIS)
         die(1, "Wrong number of arguments (multiple device not yet supported)")
     dst_path = os.path.realpath(cmd_n_args[1])
-    # if check_dstpath(dst_path) == DST_FILE:
-    #     using_kpartx = True
-    # else:
-    #     dst_path = os.path.realpath(dst_path)
     part_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
     log_msg(part_cmd)
     if os.system(part_cmd) != 0:
         die(1, "Format fail")
 elif command == "format":
-    if len(cmd_n_args) > 2:
+    if len(cmd_n_args) < 2:
         log_out(SYNOPSIS)
         die(1, "Wrong number of arguments (multiple device not yet supported)")
-    dst_path = cmd_n_args[1]
-    if check_dstpath(dst_path) == DST_FILE:
-        using_kpartx = True
-    else:
-        dst_path = os.path.realpath(dst_path)
+    dst_path = os.path.realpath(cmd_n_args[1])
     part_cmd = gen_parted_create_cmd(disks_list[0], dst_path)
     part_cmd += " && partprobe %s" % dst_path
     log_msg(part_cmd)
     if os.system(part_cmd) != 0:
         die(1, "Format fail")
-    if using_kpartx:
+    if check_dstpath(dst_path) == DST_FILE:
         loop_num = kpartx_file(dst_path)
         try:
             blk_prefix = "/dev/mapper/loop%dp" % loop_num
@@ -459,27 +431,20 @@ else:
 
     system_num = int(cmd_n_args[1])
 
-    dst_path = cmd_n_args[2]
+    dst_path = os.path.realpath(cmd_n_args[2])
 
     if command == "mount":
-        blk_prefix = None
-        loop_num = set_kpartx_if_needed(dst_path)
-        if loop_num != None:
-            using_kpartx = True
-            blk_prefix = "/dev/mapper/loop%dp" % loop_num
-        else:
-            blk_prefix = os.path.realpath(dst_path)
         if len(cmd_n_args) != 4:
-            if using_kpartx:
-                os.system("kpartx -d %s" % dst_path)
             log_out(SYNOPSIS)
             die(1, "Wrong number of arguments")
         mount_point = cmd_n_args[3]
-        mount_system(system_repr_list[system_num], [blk_prefix], mount_point)
-        if using_kpartx:
+        loop_num = set_kpartx_if_needed(dst_path)
+        if loop_num != None:
+            mount_system(system_repr_list[system_num], ["/dev/mapper/loop%dp" % loop_num], mount_point)
             print("/dev/loop%d" % loop_num)
         else:
-            print(blk_prefix)
+            mount_system(system_repr_list[system_num], [dst_path], mount_point)
+            print(dst_path)
     elif command == "umount":
         if len(cmd_n_args) != 4:
             log_out(SYNOPSIS)
@@ -495,9 +460,9 @@ else:
         loop_num = set_kpartx_if_needed(dst_path)
         if loop_num != None:
             blk_prefix = "/dev/mapper/loop%dp" % loop_num
-            dump_fstab(system_repr_list[system_num], disks_list, [blk_prefix])
+            dump_fstab(system_repr_list[system_num], disks_list, ["/dev/mapper/loop%dp" % loop_num])
             os.system("kpartx -d %s > /dev/null 2>&1" % dst_path)
         else:
-            dump_fstab(system_repr_list[system_num], disks_list, [os.path.realpath(dst_path)])
+            dump_fstab(system_repr_list[system_num], disks_list, [dst_path])
     else:
         die(1, "Unknown command %s" % command)
