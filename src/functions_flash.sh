@@ -8,7 +8,7 @@ DEFAULT_LIVE_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
-                    \"volname\": \"persistence\"
+                    \"fsname\": \"persistence\"
                 }
             ]
         }
@@ -31,19 +31,19 @@ DEFAULT_FSTAB_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
-                    \"volname\": \"boot\",
+                    \"fsname\": \"boot\",
                     \"partname\": \"boot\",
                     \"size\": \"500M\"
                 },
                 {
                     \"type\": \"linux-swap\",
-                    \"volname\": \"swap\",
+                    \"fsname\": \"swap\",
                     \"partname\": \"swap\",
                     \"size\": \"XXXSWAPSIZEXXX\"
                 },
                 {
                     \"type\": \"ext4\",
-                    \"volname\": \"sys\",
+                    \"fsname\": \"sys\",
                     \"partname\": \"sys\"
                 }
             ]
@@ -78,13 +78,13 @@ DEFAULT_FSTAB_RPI_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
-                    \"volname\": \"boot\",
+                    \"fsname\": \"boot\",
                     \"partname\": \"boot\",
                     \"size\": \"500M\"
                 },
                 {
                     \"type\": \"ext4\",
-                    \"volname\": \"sys\",
+                    \"fsname\": \"sys\",
                     \"partname\": \"sys\"
                 }
             ]

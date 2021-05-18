@@ -105,6 +105,14 @@ def dkhr_check_disk_repr(disk_repr):
     for part in disk_repr["parts"]:
         if not "type" in part.keys():
             DiskHandlerException("check part: the key 'type' missing")
+        if "flags" in part.keys():
+            for flag in part["flags"]:
+                if not flag in ["boot", "root", "swap", "hidden", "raid", "lvm",
+                                "lba", "hp-service", "palo", "prep", "msftres",
+                                "bios_grub", "atvrecv", "diag", "legacy_boot",
+                                "msftdata", "irst", "esp", "chromeos_kernel",
+                                "bls_boot"]:
+                    raise DiskHandlerException("Unexpected flag %s" % flag)
 
 def check_disks_repr_list(disks_list):
     if len(disks_list) == 0:
@@ -173,6 +181,24 @@ def get_destination_mo_size(path_dst):
         return int(subprocess.check_output("parted -s -m " + path_dst + " -- unit B print 2> /dev/null | grep " + path_dst + " | cut -d: -f 2",
                                            shell=True).replace(b"\n", b"").replace(b"B", b"")) / 1048576
 
+def _gen_parted_create_msdos_cmd(part, start_addr, end_addr):
+    """Factorisation of gen_parted_create_cmd"""
+    return "mkpart primary {type} {start} {end}".format(type=part["type"],
+                                                        start=start_addr,
+                                                        end=end_addr)
+
+def _gen_parted_create_gpt_cmd(part, start_addr, end_addr):
+    """Factorisation of gen_parted_create_cmd"""
+    if "partname" in part.keys():
+        return "mkpart {partname} {type} {start} {end}".format(partname=part["partname"],
+                                                               type=part["type"],
+                                                               start=start_addr,
+                                                               end=end_addr)
+    else:
+        return "mkpart {type} {start} {end}".format(type=part["type"],
+                                                    start=start_addr,
+                                                    end=end_addr)
+
 def gen_parted_create_cmd(disk_repr, path_dst):
     # Fill missing size
     size_missing = False
@@ -195,33 +221,26 @@ def gen_parted_create_cmd(disk_repr, path_dst):
 
     # Generate partition command
     parted_cmd = "parted -s " + path_dst + " -- mktable " + disk_repr["table"]
+    if disk_repr["table"] == "msdos":
+        _gen_parted_cb = _gen_parted_create_msdos_cmd
+    else:# if disk_repr["table"] == "gpt":
+        _gen_parted_cb = _gen_parted_create_gpt_cmd
     last_offset = 0
     last_partition = False
-    # !!! Need factorisation
-    if disk_repr["table"] == "msdos":
-        for part in disk_repr["parts"]:
-            if part == disk_repr["parts"][-1]:
-                last_partition = True
-            end_offset = last_offset + get_mo_size(part["size"])
-            parted_cmd += " mkpart primary {type} {start} {end}".format(type=part["type"],
-                                                                        start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                        end="%dMB" % end_offset if not last_partition else "100%")
-            last_offset = end_offset
-    else:# if disk_repr["table"] == "gpt":
-        for part in disk_repr["parts"]:
-            if part == disk_repr["parts"][-1]:
-                last_partition = True
-            end_offset = last_offset + get_mo_size(part["size"])
-            if "partname" in part.keys():
-                parted_cmd += " mkpart {partname} {type} {start} {end}".format(partname=part["partname"],
-                                                                               type=part["type"],
-                                                                               start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                               end="%dMB" % end_offset if not last_partition else "100%")
-            else:
-                parted_cmd += " mkpart {type} {start} {end}".format(type=part["type"],
-                                                                    start="0%" if last_offset == 0 else "%dMB" % last_offset,
-                                                                    end="%dMB" % end_offset if not last_partition else "100%")
-            last_offset = end_offset
+    part_num = 1
+    for part in disk_repr["parts"]:
+        if part == disk_repr["parts"][-1]:
+            last_partition = True
+        end_offset = last_offset + get_mo_size(part["size"])
+        parted_cmd += " %s" % _gen_parted_cb(part,
+                                             "0%" if last_offset == 0 else "%dMB" % last_offset,
+                                             "%dMB" % end_offset if not last_partition else "100%")
+        if "flags" in  part.keys():
+            for flag in part["flags"]:
+                parted_cmd += " set {part_num_arg} {flag_arg} on".format(part_num_arg=part_num,
+                                                                         flag_arg=flag)
+        last_offset = end_offset
+        part_num += 1
     return parted_cmd
 
 def wait_path(path):
@@ -243,20 +262,20 @@ def gen_mkfs_cmd(part_list, blk_prefix):
         new_mkfs_cmd = None
         if part["type"] == "fat32":
             new_mkfs_cmd = "mkfs.fat -F32"
-            if "volname" in part.keys():
-                new_mkfs_cmd += " -n %s" % part["volname"]
+            if "fsname" in part.keys():
+                new_mkfs_cmd += " -n %s" % part["fsname"]
         elif part["type"] == "ext4":
             new_mkfs_cmd = "mkfs.ext4 -F"
-            if "volname" in part.keys():
-                new_mkfs_cmd += " -L %s" % part["volname"]
+            if "fsname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["fsname"]
         elif part["type"] == "linux-swap":
             new_mkfs_cmd = "mkswap -f"
-            if "volname" in part.keys():
-                new_mkfs_cmd += " -L %s" % part["volname"]
+            if "fsname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["fsname"]
         elif part["type"] == "ntfs":
             new_mkfs_cmd = "mkfs.ntfs -f"
-            if "volname" in part.keys():
-                new_mkfs_cmd += " -L %s" % part["volname"]
+            if "fsname" in part.keys():
+                new_mkfs_cmd += " -L %s" % part["fsname"]
         else:
             raise DiskHandlerException("Unhandled partition type %s" % part["type"])
         new_mkfs_cmd += " %s > /dev/null 2>&1" % part_path

@@ -5,7 +5,7 @@
             "parts": [
                 {
                     "type": "fat32",
-                    "volname": "persistence"}
+                    "fsname": "persistence"}
             ]
         }
     ],

@@ -5,19 +5,19 @@
             "parts": [
                 {
                     "type": "fat32",
-                    "volname": "boot",
+                    "fsname": "boot",
                     "partname": "boot",
                     "size": "500M"
                 },
                 {
                     "type": "linux-swap",
-                    "volname": "swap",
+                    "fsname": "swap",
                     "partname": "swap",
                     "size": "2G"
                 },
                 {
                     "type": "ext4",
-                    "volname": "sys",
+                    "fsname": "sys",
                     "partname": "sys"
                 }
             ]

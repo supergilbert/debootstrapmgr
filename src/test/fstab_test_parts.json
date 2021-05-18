@@ -1,13 +1,20 @@
 {
     "disks": [
         {
-            "table": "gpt",
+            "table": "msdos",
             "parts": [
                 {
                     "type": "fat32",
                     "fsname": "boot",
                     "partname": "boot",
-                    "size": "1G"
+                    "size": "500M",
+                    "flags": ["boot"]
+                },
+                {
+                    "type": "linux-swap",
+                    "fsname": "swap",
+                    "partname": "swap",
+                    "size": "2G"
                 },
                 {
                     "type": "ext4",
@@ -21,8 +28,12 @@
         {
             "type": "fstab",
             "disk": 0,
-            "partidx": 1,
+            "partidx": 2,
             "parts": [
+                {
+                    "disk": 0,
+                    "partidx": 1
+                },
                 {
                     "disk": 0,
                     "partidx": 0,
