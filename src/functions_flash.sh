@@ -23,7 +23,7 @@ DEFAULT_LIVE_JSON="\
 }
 "
 
-DEFAULT_FSTAB_JSON="\
+DEFAULT_FSTAB_UEFI_JSON="\
 {
     \"disks\": [
         {
@@ -31,8 +31,8 @@ DEFAULT_FSTAB_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
-                    \"fsname\": \"boot\",
-                    \"partname\": \"boot\",
+                    \"fsname\": \"EFI\",
+                    \"partname\": \"EFI\",
                     \"size\": \"500M\"
                 },
                 {
@@ -62,7 +62,43 @@ DEFAULT_FSTAB_JSON="\
                 {
                     \"disk\": 0,
                     \"partidx\": 0,
-                    \"mount\": \"/boot\"
+                    \"mount\": \"/boot/efi\"
+                }
+            ]
+        }
+    ]
+}
+"
+
+DEFAULT_FSTAB_BIOS_JSON="\
+{
+    \"disks\": [
+        {
+            \"table\": \"XXXTABLEXXX\",
+            \"parts\": [
+                {
+                    \"type\": \"linux-swap\",
+                    \"fsname\": \"swap\",
+                    \"partname\": \"swap\",
+                    \"size\": \"XXXSWAPSIZEXXX\"
+                },
+                {
+                    \"type\": \"ext4\",
+                    \"fsname\": \"sys\",
+                    \"partname\": \"sys\"
+                }
+            ]
+        }
+    ],
+    \"systems\": [
+        {
+            \"type\": \"fstab\",
+            \"disk\": 0,
+            \"partidx\": 1,
+            \"parts\": [
+                {
+                    \"disk\": 0,
+                    \"partidx\": 0
                 }
             ]
         }
@@ -269,6 +305,7 @@ _get_sys_min_size ()
     _CHROOT_DIR=$1
     _SIZE="$(_echo_dir_mo_size $_CHROOT_DIR)"
     for mount_path in $($diskhdr_cmd $DEBG_JSON mounts 0); do
+        mkdir -p ${_CHROOT_DIR}${mount_path}
         _SIZE=$(($_SIZE - $(_echo_dir_mo_size ${_CHROOT_DIR}${mount_path})))
     done
     echo $_SIZE
@@ -378,7 +415,11 @@ _flash_pc ()
             PART_TABLE="msdos"
         fi
         DEBG_JSON="${DEBG_TMP_DIR}/diskhdr.json"
-        echo "$DEFAULT_FSTAB_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DEBG_SWAP_SIZE}/g" > $DEBG_JSON
+        if [ -n "$DEBG_GRUBEFI" ]; then
+            echo "$DEFAULT_FSTAB_UEFI_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DEBG_SWAP_SIZE}/g" > $DEBG_JSON
+        else
+            echo "$DEFAULT_FSTAB_BIOS_JSON" | sed "s/XXXTABLEXXX/${PART_TABLE}/g;s/XXXSWAPSIZEXXX/${DEBG_SWAP_SIZE}/g" > $DEBG_JSON
+        fi
     fi
 
     _dest_format_mount_copy_n_set_trap
@@ -408,9 +449,9 @@ EOF
 
         echo_notify "Installing grub efi"
         if [ "$DEBG_CHROOT_ARCH" = "amd64" ]; then
-            chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=x86_64-efi --boot-directory=/boot --efi-directory=/boot --force
+            chroot ${DEBG_TMP_DIR}/mnt grub-install --target=x86_64-efi
         else
-            chroot ${DEBG_TMP_DIR}/mnt grub-install --removable --target=i386-efi --boot-directory=/boot --efi-directory=/boot --force
+            chroot ${DEBG_TMP_DIR}/mnt grub-install --target=i386-efi
         fi
         chroot ${DEBG_TMP_DIR}/mnt update-grub || true
         echo_notify "grub installed"
