@@ -37,7 +37,7 @@ case "$1" in
             rm -rf ${CURRENT_DIR}/debian
         fi
         cp -R ${CURRENT_DIR}/src/debian_tmp ${CURRENT_DIR}/debian
-        cp ${CURRENT_DIR}/src/debian_tmp/no_qemu_version_control_dep ${CURRENT_DIR}/debian/control
+        cp ${CURRENT_DIR}/src/debian_tmp/no_qemu_version_dep_control ${CURRENT_DIR}/debian/control
         ;;
 
     "build")
