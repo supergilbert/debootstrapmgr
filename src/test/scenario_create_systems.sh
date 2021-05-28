@@ -49,11 +49,11 @@ cp /root/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH /root/run_test.sh
 
 log_stape "Generating rpi squashfs file"
-debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /tmp/test.squashfs
+debgen mklive-squashfs -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /tmp/test.squashfs
 rm -f /tmp/test.squashfs
 
 log_stape "Generating rpi image file"
-debgen rpi-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen rpi-flash -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
     echo "ERROR: Loop device still bind ${TEST_CHROOT_PATH}.img"
     exit 1
@@ -61,10 +61,10 @@ fi
 rm -f /tmp/test.img
 
 log_stape "Generating rpi live system in block device sdb"
-debgen rpi-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdb
+debgen rpi-flash-live -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /dev/sdb
 
 log_stape "Generating rpi system in block device sdc"
-debgen rpi-flash -s ${TEST_CHROOT_PATH} -d /dev/sdc
+debgen rpi-flash -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /dev/sdc
 
 rm -rf ${TEST_CHROOT_PATH}
 

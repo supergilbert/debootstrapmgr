@@ -154,21 +154,22 @@ Usage: $DEBG_NAME $DEBG_CMD_NAME [OPTIONS]
   Flash a chroot to a block device or a file.
 
 OPTIONS:
-  -a <PKG>, --add-package=<PKG> Add following debian package to the image
-  -d <DST>, --destination=<DST> Destination path
-  -e <EXE>, --exec=<EXE>        Run executable into the new system
-  -E, --efi                     Install grub-efi instead of grub-pc
-  -i, --install-deb             Add debian file to install
-  -j <JSON>, --json <JSON>      Specify a json filesystem architecture
-  -g, --gpt                     Setup an \"GPT\" partition table
-                                instead of \"MSDOS\"
-  -s <SRC>, --source=<SRC>      Chroot directory
-  -S <SIZE>, --size=<SIZE>      Set image giga-octet size
-  -w <SIZE>, --swap=<SIZE>      Swap size in Go (default 2Go)
-  -h, --help                    Display this help
+  -a <PKG>, --add-package=<PKG>     Add following debian package to the image
+  -C, --apt-cacher=<APT_CACHE_ADDR> Use an temporary apt cache proxy
+  -d <DST>, --destination=<DST>     Destination path
+  -e <EXE>, --exec=<EXE>            Run executable into the new system
+  -E, --efi                         Install grub-efi instead of grub-pc
+  -i, --install-deb                 Add debian file to install
+  -j <JSON>, --json <JSON>          Specify a json filesystem architecture
+  -g, --gpt                         Setup an \"GPT\" partition table
+                                    instead of \"MSDOS\"
+  -s <SRC>, --source=<SRC>          Chroot directory
+  -S <SIZE>, --size=<SIZE>          Set image giga-octet size
+  -w <SIZE>, --swap=<SIZE>          Swap size in Go (default 2Go)
+  -h, --help                        Display this help
 "
 
-    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:d:e:Egj:hi:s:S:w:' -l 'add-package:,destination:,exec:,efi,gpt,json:,help,image-size:,install-deb:,source:,swap:' -- "$@")
+    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:C:d:e:Egj:hi:s:S:w:' -l 'add-package:,apt-cacher:,destination:,exec:,efi,gpt,json:,help,image-size:,install-deb:,source:,swap:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -180,6 +181,11 @@ OPTIONS:
             '-a'|'--add-package')
                 shift
                 DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
+                shift
+                ;;
+            '-C'|'--apt-cacher')
+                shift
+                DEBG_APT_CACHER="$1"
                 shift
                 ;;
             '-d'|'--destination')
@@ -372,13 +378,19 @@ _flash_pc ()
 
     set_trap "unset_chroot_operation ${DEBG_TMP_DIR}/chroot; rm -rf $DEBG_TMP_DIR"
 
-    mkdir ${DEBG_TMP_DIR}/mnt
     if [ -n "$DEBG_SRC_PATH" ]; then
         _handle_flash_src_path_to_tmp_dir
     else
-        mkdir ${DEBG_TMP_DIR}/mnt
         echo_notify "No source chroot provided generating a default one"
-        ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
+        if [ -n "$DEBG_APT_CACHER" ]; then
+            ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -C $DEBG_APT_CACHER -d ${DEBG_TMP_DIR}/chroot
+        else
+            ${DEBG_CURRENT_DIR}/debgen.sh pc-chroot -d ${DEBG_TMP_DIR}/chroot
+        fi
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_TMP_DIR}/chroot/etc/apt/apt.conf.d/99debgentmp
     fi
 
     # chroot installations
@@ -422,6 +434,7 @@ _flash_pc ()
         fi
     fi
 
+    mkdir ${DEBG_TMP_DIR}/mnt
     _dest_format_mount_copy_n_set_trap
 
     # Grub installation
@@ -462,6 +475,10 @@ EOF
         chroot ${DEBG_TMP_DIR}/mnt grub-install --force --target=i386-pc $DEBG_BLKDEV || true
         chroot ${DEBG_TMP_DIR}/mnt grub-mkconfig > ${DEBG_TMP_DIR}/mnt/boot/grub/grub.cfg || true
         echo_notify "grub installed"
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        rm -f ${DEBG_TMP_DIR}/chroot/etc/apt/apt.conf.d/99debgentmp
     fi
 
     rm ${DEBG_TMP_DIR}/mnt/boot/grub/device.map $GRUB_CFG_PATH

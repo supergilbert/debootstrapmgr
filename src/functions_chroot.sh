@@ -484,16 +484,13 @@ EOF
     wget -q http://${DEBG_RASPBERRYPI_URL}/raspberrypi.gpg.key -O - | chroot "$DEBG_CHROOT_DIR" apt-key add -
 
     if [ -n "$DEBG_APT_CACHER" ]; then
-        cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DEBG_APT_CACHER}/${DEBG_RASPBIAN_URL} $DEBG_DIST main contrib firmware non-free rpi
-deb http://${DEBG_APT_CACHER}/${DEBG_RASPBERRYPI_URL} $DEBG_DIST main ui untested
-EOF
-    else
-        cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
+    fi
+
+    cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
 deb http://${DEBG_RASPBIAN_URL} $DEBG_DIST main contrib firmware non-free rpi
 deb http://${DEBG_RASPBERRYPI_URL} $DEBG_DIST main ui untested
 EOF
-    fi
 
     cat <<EOF > ${DEBG_CHROOT_DIR}/etc/udev/rules.d/10-gbr-vchiq-permissions.rules
 SUBSYSTEM=="rpivid-*",GROUP="video",MODE="0660"
@@ -517,10 +514,7 @@ EOF
     unset_trap
 
     if [ -n "$DEBG_APT_CACHER" ]; then
-        cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DEBG_RASPBIAN_URL} $DEBG_DIST main contrib firmware non-free rpi
-deb http://${DEBG_RASPBERRYPI_URL} $DEBG_DIST main ui untested
-EOF
+        rm -f ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
     fi
 }
 
@@ -646,6 +640,10 @@ _chroot_to_livesys_dir ()
 
     echo_notify "Generating live-boot initrd and filesquahfs ..."
 
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_TMP_DIR}/chroot/etc/apt/apt.conf.d/99debgentmp
+    fi
+
     if [ "$DEBG_TYPE" = "RPI" ]; then
         # Hack for raspbian kernel version handling
         INITRAMFS_GEN_SH=$(mktemp --suffix=_initramfs_gen.sh)
@@ -681,6 +679,10 @@ EOF
         unset_chroot_operation ${DEBG_TMP_DIR}/chroot
     fi
 
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        rm -f ${DEBG_TMP_DIR}/chroot/etc/apt/apt.conf.d/99debgentmp
+    fi
+
     if [ -n "$DEBG_PERSISTENCE_PATHS" ]; then
         mkdir ${DEBG_TMP_DIR}/live/persistence
         for ppath in $DEBG_PERSISTENCE_PATHS; do
@@ -703,16 +705,17 @@ Usage: $DEBG_NAME $DEBG_CMD_NAME [OPTIONS]
   Convert a chroot to a live system an flash it to a block device or a file.
 
 OPTIONS:
-  -a <PKG>, --add-package=<PKG> Add following debian package to the image
-  -d <DST>, --destination <DST> Destination path
-  -e <EXE>, --exec=<EXE>        Run executable into the new system
-  -h, --help                    Display this help
-  -i, --install-deb                  Add debian file to install
-  -s <SRC>, --source=<SRC>      Source chroot directory
-  -p, --add-persistence=PATH    Add persistency on specified path
+  -a <PKG>, --add-package=<PKG>     Add following debian package to the image
+  -C, --apt-cacher=<APT_CACHE_ADDR> Use an temporary apt cache proxy
+  -d <DST>, --destination <DST>     Destination path
+  -e <EXE>, --exec=<EXE>            Run executable into the new system
+  -h, --help                        Display this help
+  -i, --install-deb                      Add debian file to install
+  -s <SRC>, --source=<SRC>          Source chroot directory
+  -p, --add-persistence=PATH        Add persistency on specified path
 "
 
-    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:d:e:hi:p:s:' -l 'add-package:,destination:,exec:,help,install-deb:,source:,add-persistence:' -- "$@")
+    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:C:d:e:hi:p:s:' -l 'add-package:,apt-cacher:,destination:,exec:,help,install-deb:,source:,add-persistence:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -724,6 +727,11 @@ OPTIONS:
             '-a'|'--add-package')
                 shift
                 DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
+                shift
+                ;;
+            '-C'|'--apt-cacher')
+                shift
+                DEBG_APT_CACHER="$1"
                 shift
                 ;;
             '-d'|'--destination')
@@ -795,12 +803,20 @@ _chroot_to_live_squashfs ()
     rsync -ad ${DEBG_SRC_PATH}/* ${DEBG_TMP_DIR}/
     echo_notify "Copy done."
 
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_TMP_DIR}/etc/apt/apt.conf.d/99debgentmp
+    fi
+
     setup_chroot_operation $DEBG_TMP_DIR
     _chroot_add_pkg $DEBG_TMP_DIR live-boot
     _chroot_add_pkg $DEBG_TMP_DIR $DEBG_ADD_PKG_LIST
     _install_deb_pkg $DEBG_TMP_DIR $DEBG_DEB_PKGS
     _run_in_root_system $DEBG_TMP_DIR $DEBG_EXE_LIST
     unset_chroot_operation $DEBG_TMP_DIR
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        rm -f ${DEBG_TMP_DIR}/etc/apt/apt.conf.d/99debgentmp
+    fi
 
     for pers_path in $DEBG_PERSISTENCE_PATHS; do
         rm -rf ${DEBG_TMP_DIR}${pers_path}
