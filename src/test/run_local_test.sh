@@ -19,7 +19,8 @@ export DEBGEN_DEBUG=ON
 SRCDIR=$(realpath $(dirname $0)/../..)
 
 ${SRCDIR}/make_deb.sh build
-PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_amd64.deb
+DEBGEN_PKGPATH=${SRCDIR}/../debgen_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_amd64.deb
+DISKHDR_PKGPATH=${SRCDIR}/../diskhdr_$(dpkg-parsechangelog -l ${SRCDIR}/debian/changelog -S Version)_all.deb
 
 TEST_CHROOT_PATH="/tmp/debgen_test_chroot_base"
 TEST_TMP_DIR="$(mktemp -d --suffix _debgen_test)"
@@ -47,7 +48,7 @@ EOF
 
 if [ ! -d ${TEST_CHROOT_PATH} ]; then
     # need qemu-user-static >= 1:5.0.4 to run rpi emulation with "raspi-copy-n-..." package installed (bullseye dist (currently unstable version) do the hack)
-    debgen pc-chroot -d $TEST_CHROOT_PATH -r ${DEBGEN_APT_CACHER}/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc -i $PKGPATH
+    debgen pc-chroot -d $TEST_CHROOT_PATH -r ${DEBGEN_APT_CACHER}/ftp.free.fr/debian -D bullseye -a expect -a procps -a debianutils -a psmisc -i $DEBGEN_PKGPATH -i $DISKHDR_PKGPATH
     cp ${SRCDIR}/src/test/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/root
     sed "s/XXXAPTCACHERXXX/${DEBGEN_APT_CACHER}/" ${SRCDIR}/src/test/scenario_create_systems.sh > ${TEST_CHROOT_PATH}/root/run_test.sh
     chmod +x ${TEST_CHROOT_PATH}/root/run_test.sh
@@ -70,7 +71,7 @@ TEST_QEMU_SDA="${TEST_TMP_DIR}/sda.img"
 TEST_QEMU_SDB="${TEST_TMP_DIR}/sdb.img"
 TEST_QEMU_SDC="${TEST_TMP_DIR}/sdc.img"
 
-debgen pc-flash -S 10 -s $TEST_CHROOT_PATH -d $TEST_QEMU_SDA -i $PKGPATH -e $TMP_GRUB_CFG
+debgen pc-flash -S 10 -s $TEST_CHROOT_PATH -d $TEST_QEMU_SDA -i $DEBGEN_PKGPATH -i $DISKHDR_PKGPATH -e $TMP_GRUB_CFG
 
 rm $TMP_GRUB_CFG
 

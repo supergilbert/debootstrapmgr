@@ -1,2 +1,1 @@
 usr/lib/debgen/debgen.sh usr/sbin/debgen
-usr/lib/debgen/diskhdr.py usr/sbin/diskhdr

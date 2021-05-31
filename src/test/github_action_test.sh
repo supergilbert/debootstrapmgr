@@ -14,6 +14,7 @@ apt -y install apt-utils debhelper devscripts expect qemu-system-x86
 mkdir -p /tmp/repo/pkg
 
 cp ../debgen_$(dpkg-parsechangelog -l debian/changelog -S Version)_amd64.deb /tmp/repo/pkg
+cp ../*.deb /tmp/repo/pkg
 
 cd /tmp/repo
 apt-ftparchive packages pkg > pkg/Packages

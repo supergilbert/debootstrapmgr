@@ -8,6 +8,7 @@ DEFAULT_LIVE_JSON="\
             \"parts\": [
                 {
                     \"type\": \"fat32\",
+                    \"flags\": [\"boot\", \"esp\"],
                     \"fsname\": \"persistence\"
                 }
             ]
@@ -551,8 +552,13 @@ _flash_pc_live ()
 
     rsync --modify-window=1 --update --recursive ${DEBG_TMP_DIR}/live/* ${DEBG_TMP_DIR}/mnt
 
-    # Setup Boot
+    echo_notify "Setting up Boot"
     grub-install --target=i386-pc --boot-directory=${DEBG_TMP_DIR}/mnt $DEBG_DST_PATH
+    if [ "$DEBG_CHROOT_ARCH" = "amd64" ]; then
+        grub-install --target=x86_64-efi --removable --no-uefi-secure-boot --boot-directory=${DEBG_TMP_DIR}/mnt --efi-directory=${DEBG_TMP_DIR}/mnt $DEBG_DST_PATH
+    else
+        grub-install --target=xi386-efi  --removable --no-uefi-secure-boot --boot-directory=${DEBG_TMP_DIR}/mnt --efi-directory=${DEBG_TMP_DIR}/mnt $DEBG_DST_PATH
+    fi
     cat <<EOF > ${DEBG_TMP_DIR}/mnt/grub/grub.cfg
 insmod ext2
 set timeout=0
@@ -561,7 +567,7 @@ linux /vmlinuz-${DEBG_CHROOT_KERNEL_VERSION} boot=live components persistence
 initrd /initrd.img-${DEBG_CHROOT_KERNEL_VERSION}
 boot
 EOF
-    # End of boot setup
+    echo_notify "End of boot setup"
 
     echo_notify "Synchronizing cached write ..."
     $diskhdr_cmd $DEBG_JSON umount 0 $DEBG_DST_PATH ${DEBG_TMP_DIR}/mnt
@@ -739,7 +745,6 @@ _flash_rpi ()
 
 _flash_rpi_live ()
 {
-    DEBG_TYPE="RPI"
     _handle_dir_to_livesys_args "$@"
 
     echo_notify "Generating live system"

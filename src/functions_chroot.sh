@@ -644,7 +644,9 @@ _chroot_to_livesys_dir ()
         echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_TMP_DIR}/chroot/etc/apt/apt.conf.d/99debgentmp
     fi
 
-    if [ "$DEBG_TYPE" = "RPI" ]; then
+    DEBG_CHROOT_ARCH="$(chroot ${DEBG_TMP_DIR}/chroot dpkg --print-architecture)"
+
+    if [ "$DEBG_CHROOT_ARCH" = "armhf" ]; then
         # Hack for raspbian kernel version handling
         INITRAMFS_GEN_SH=$(mktemp --suffix=_initramfs_gen.sh)
         set_trap "unset_chroot_operation ${DEBG_TMP_DIR}/chroot; rm -rf INITRAMFS_GEN_SH"
