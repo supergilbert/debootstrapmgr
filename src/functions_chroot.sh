@@ -179,7 +179,9 @@ OPTIONS:
   -i, --install-deb                  Add debian file to install
   -p, --password                     See the default root password (otherwise
                                      root password is root)
-  -r <REPO_ADDR>, --repo <REPO_ADDR> Modify default repo addr (Unused on rpi generation)
+  -r <REPO_FILE>, --repo <REPO_FILE> Modify default apt repositories with the
+                                     provided sources.list file. (Use the first
+                                     line entry for debootstrap)
   -s, --sysv                         Use sysv instead of systemd
   -h, --help                         Display this help
 "
@@ -211,6 +213,13 @@ OPTIONS:
             '-d'|'--destination')
                 shift
                 DEBG_CHROOT_DIR="$1"
+                if [ -z "$DEBG_CHROOT_DIR" ]; then
+                    echo "$DEBG_GENSYS_SYNOPSIS"
+                    echo_die 1 "Destination is mandatory"
+                fi
+                if [ -e "$DEBG_CHROOT_DIR" ]; then
+                    echo_die 1 "$DEBG_CHROOT_DIR already exist"
+                fi
                 shift
                 ;;
             '-D'|'--distribution')
@@ -248,7 +257,10 @@ OPTIONS:
                 ;;
             '-r'|'--repo')
                 shift
-                DEBG_REPO_ADDR="$1"
+                DEBG_REPO_FILE="$1"
+                if [ ! -r "$DEBG_REPO_FILE" ]; then
+                    echo_die 1 "$DEBG_REPO_FILE repository file is unreadable"
+                fi
                 shift
                 ;;
             '-s'|'--sysv')
@@ -269,15 +281,6 @@ OPTIONS:
     if [ $# -ne 0 ]; then
         echo "$DEBG_GENSYS_SYNOPSIS"
         echo_die 1 "To much argument ($*)"
-    fi
-
-    if [ -z "$DEBG_CHROOT_DIR" ]; then
-        echo "$DEBG_GENSYS_SYNOPSIS"
-        echo_die 1 "Destination is mandatory"
-    fi
-
-    if [ -e "$DEBG_CHROOT_DIR" ]; then
-        echo_die 1 "$DEBG_CHROOT_DIR already exist"
     fi
 
     if [ -n "$DEBG_EXE_LIST" ]; then
@@ -323,21 +326,7 @@ _debootstrap_pc ()
     # The filesystem root directory must let users read and execute
     chmod 755 "$DEBG_CHROOT_DIR"
 
-    if [ -z "$DEBG_DIST" ]; then
-        DEBG_DIST=buster
-    fi
-
     echo_notify "Destination: $DEBG_DST"
-
-    if [ -z "$DEBG_REPO_ADDR" ]; then
-        DEBG_REPO_ADDR="ftp.debian.org/debian"
-    fi
-
-    if [ -n "$DEBG_APT_CACHER" ]; then
-        DEBG_DEBOOTSTRAP_URL="http://${DEBG_APT_CACHER}/${DEBG_REPO_ADDR}"
-    else
-        DEBG_DEBOOTSTRAP_URL="http://${DEBG_REPO_ADDR}"
-    fi
 
     echo_notify "Generating a bootstrap from ${DEBG_DEBOOTSTRAP_URL}."
 
@@ -356,11 +345,35 @@ _debootstrap_pc ()
 
     set_trap "trap_cleanup"
 
-    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="main,contrib,non-free" --include="$DEBG_INCLUDE_PKG" --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
+    if [ -n "$DEBG_REPO_FILE" ]; then
+        DEBG_REPO_URI="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 uri)"
+        DEBG_REPO_CMP="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 components)"
+        DEBG_DIST="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 suite)"
+    else
+        DEBG_REPO_URI="http://ftp.debian.org/debian"
+        DEBG_REPO_CMP="main,contrib,non-free"
+        DEBG_DIST="buster"
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        DEBG_REPO_URI=$(echo $DEBG_REPO_URI | sed "s#\(http://\)\(.*\)#\1${DEBG_APT_CACHER}/\2#g")
+    else
+        DEBG_REPO_URI="$DEBG_REPO_URI"
+    fi
+
+    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="$DEBG_REPO_CMP" --include="$DEBG_INCLUDE_PKG" --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_REPO_URI"; then
         set +e
         unset_chroot_operation ${DEBG_CHROOT_DIR}
         unset_trap
         echo_die 1 "debootstrap failed."
+    fi
+
+    if [ -n "$DEBG_REPO_FILE" ]; then
+        cp $DEBG_REPO_FILE ${DEBG_CHROOT_DIR}/etc/apt/sources.list
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
     fi
 
     setup_chroot_operation ${DEBG_CHROOT_DIR}
@@ -404,9 +417,7 @@ EOF
     unset_trap
 
     if [ -n "$DEBG_APT_CACHER" ]; then
-        cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
-deb http://${DEBG_REPO_ADDR} $DEBG_DIST main contrib non-free
-EOF
+        rm -f ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
     fi
 }
 
@@ -439,11 +450,11 @@ _debootstrap_rpi ()
     DEBG_RASPBIAN_URL="archive.raspbian.org/raspbian"
     DEBG_RASPBERRYPI_URL="archive.raspberrypi.org/debian"
 
-    if [ -n "$DEBG_APT_CACHER" ]; then
-        DEBG_DEBOOTSTRAP_URL="http://${DEBG_APT_CACHER}/${DEBG_RASPBIAN_URL}"
-    else
-        DEBG_DEBOOTSTRAP_URL="http://${DEBG_RASPBIAN_URL}"
-    fi
+    # if [ -n "$DEBG_APT_CACHER" ]; then
+    #     DEBG_DEBOOTSTRAP_URL="http://${DEBG_APT_CACHER}/${DEBG_RASPBIAN_URL}"
+    # else
+    #     DEBG_DEBOOTSTRAP_URL="http://${DEBG_RASPBIAN_URL}"
+    # fi
 
     echo_notify "Generating a bootstrap from ${DEBG_DEBOOTSTRAP_URL}."
 
@@ -464,11 +475,40 @@ _debootstrap_rpi ()
 
     set_trap "trap_cleanup"
 
-    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="main,contrib,non-free,rpi" --include="$DEBG_INCLUDE_PKG" --no-check-gpg --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_DEBOOTSTRAP_URL"; then
+    if [ -n "$DEBG_REPO_FILE" ]; then
+        DEBG_REPO_URI="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 uri)"
+        DEBG_REPO_CMP="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 components)"
+        DEBG_DIST="$(${DEBG_CURRENT_DIR}/get_aptsources_entry_data.py $DEBG_REPO_FILE 0 suite)"
+    else
+        DEBG_REPO_URI="http://${DEBG_RASPBIAN_URL}"
+        DEBG_REPO_CMP="main,contrib,non-free,rpi"
+        DEBG_DIST="buster"
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        DEBG_REPO_URI=$(echo $DEBG_REPO_URI | sed "s#\(http://\)\(.*\)#\1${DEBG_APT_CACHER}/\2#g")
+    else
+        DEBG_REPO_URI="$DEBG_REPO_URI"
+    fi
+
+    if ! debootstrap --arch="$DEBG_TARGET_ARCH" --components="$DEBG_REPO_CMP" --include="$DEBG_INCLUDE_PKG" --no-check-gpg --variant=minbase "$DEBG_DIST" "$DEBG_CHROOT_DIR" "$DEBG_REPO_URI"; then
         set +e
         trap_cleanup
         unset_trap
         echo_die 1 "debootstrap failed."
+    fi
+
+    if [ -n "$DEBG_REPO_FILE" ]; then
+        cp $DEBG_REPO_FILE ${DEBG_CHROOT_DIR}/etc/apt/sources.list
+    else
+        cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
+deb http://${DEBG_RASPBIAN_URL} $DEBG_DIST main contrib firmware non-free rpi
+deb http://${DEBG_RASPBERRYPI_URL} $DEBG_DIST main ui untested
+EOF
+    fi
+
+    if [ -n "$DEBG_APT_CACHER" ]; then
+        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
     fi
 
     setup_chroot_operation ${DEBG_CHROOT_DIR}
@@ -482,10 +522,6 @@ EOF
 
     wget -q https://${DEBG_RASPBIAN_URL}.public.key -O -            | chroot "$DEBG_CHROOT_DIR" apt-key add -
     wget -q http://${DEBG_RASPBERRYPI_URL}/raspberrypi.gpg.key -O - | chroot "$DEBG_CHROOT_DIR" apt-key add -
-
-    if [ -n "$DEBG_APT_CACHER" ]; then
-        echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
-    fi
 
     cat <<EOF > ${DEBG_CHROOT_DIR}/etc/apt/sources.list
 deb http://${DEBG_RASPBIAN_URL} $DEBG_DIST main contrib firmware non-free rpi
@@ -525,11 +561,12 @@ Usage: chroot-exec $DEBG_CMD_NAME [OPTIONS]
   Exec script or install package in a chroot preventing service running.
 
 OPTIONS:
-  -a, --add-package=<PKG>         Add following debian package
-  -d <DEST>, --destination <DEST> Destination file (tar gzip)
-  -e, --exec=<EXE>                Run executable
-  -i, --install-deb                  Add debian file to install
-  -h, --help                      Display this help
+  -a, --add-package=<PKG>           Add following debian package
+  -C, --apt-cacher=<APT_CACHE_ADDR> Use an temporary apt cache proxy
+  -d <DEST>, --destination <DEST>   Destination file (tar gzip)
+  -e, --exec=<EXE>                  Run executable
+  -i, --install-deb                 Add debian file to install
+  -h, --help                        Display this help
 "
 
     OPTS=$(getopt -n chroot-exec -o 'a:d:e:hi:' -l 'add-package:,destination:,exec:,help,install-deb:' -- "$@")
@@ -546,36 +583,35 @@ OPTIONS:
                 DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
                 shift
                 ;;
-
+            '-C'|'--apt-cacher')
+                shift
+                DEBG_APT_CACHER="$1"
+                shift
+                ;;
             '-d'|'--destination')
                 shift
                 DEBG_CHROOT_DIR="$1"
                 shift
                 ;;
-
             '-e'|'--executable')
                 shift
                 DEBG_EXE_LIST="$DEBG_EXE_LIST $1"
                 shift
                 ;;
-
             '-i'|'--install-deb')
                 shift
                 DEBG_DEB_PKGS="$DEBG_DEB_PKGS $1"
                 shift
                 ;;
-
             '-h'|'--help')
                 shift
                 echo "$DEBG_CHROOT_EXEC_SYNOPSIS"
                 exit 0
                 ;;
-
             --)
                 shift
                 break
                 ;;
-
             *)
                 echo "$DEBG_CHROOT_EXEC_SYNOPSIS"
                 echo_die 1 "Unknown argument $1"
@@ -594,11 +630,18 @@ OPTIONS:
 
     if [ -n "$DEBG_EXE_LIST" -o -n "$DEBG_DEB_PKGS" -o -n "$DEBG_ADD_PKG_LIST" ]; then
         set_trap "unset_chroot_operation $DEBG_CHROOT_DIR"
+        if [ -n "$DEBG_APT_CACHER" ]; then
+            echo "Acquire::http { Proxy \"http://${DEBG_APT_CACHER}\"; };" > ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
+        fi
         setup_chroot_operation "$DEBG_CHROOT_DIR"
 
         _chroot_add_pkg $DEBG_CHROOT_DIR $DEBG_ADD_PKG_LIST
         _install_deb_pkg $DEBG_CHROOT_DIR $DEBG_DEB_PKGS
         _run_in_root_system $DEBG_CHROOT_DIR $DEBG_EXE_LIST
+
+        if [ -n "$DEBG_APT_CACHER" ]; then
+            rm -f ${DEBG_CHROOT_DIR}/etc/apt/apt.conf.d/99debgentmp
+        fi
 
         unset_chroot_operation "$DEBG_CHROOT_DIR"
         unset_trap

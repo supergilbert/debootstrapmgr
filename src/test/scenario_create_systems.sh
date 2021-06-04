@@ -74,13 +74,13 @@ rm -rf ${TEST_CHROOT_PATH}
 log_stape "\n\n*** Test pc generation ***"
 
 log_stape "Generating pc chroot"
-debgen pc-chroot -d ${TEST_CHROOT_PATH} -r XXXAPTCACHERXXX/ftp.free.fr/debian
+debgen pc-chroot -C XXXAPTCACHERXXX -d ${TEST_CHROOT_PATH}
 mkdir -p ${TEST_CHROOT_PATH}/usr/local/share/debgen_test
 cp /root/scenario_echo_debg_ok.sh ${TEST_CHROOT_PATH}/usr/local/share/debgen_test/run_test.sh
 add_ttyS0_service $TEST_CHROOT_PATH /usr/local/share/debgen_test/run_test.sh
 
 log_stape "Generating pc image file"
-debgen pc-flash -s ${TEST_CHROOT_PATH} -d /tmp/test.img
+debgen pc-flash -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /tmp/test.img
 if losetup --raw | grep -q ${TEST_CHROOT_PATH}.img; then
     echo "ERROR: Loop device still bind ${TEST_CHROOT_PATH}.img"
     exit 1
@@ -88,21 +88,21 @@ fi
 rm -f /tmp/test.img
 
 log_stape "Generating pc iso file"
-debgen pc-flash-iso -s ${TEST_CHROOT_PATH} -d /tmp/test.iso
+debgen pc-flash-iso -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /tmp/test.iso
 rm -f /tmp/test.iso
 
 log_stape "Generating pc live system in block device sdb"
-debgen pc-flash-live -s ${TEST_CHROOT_PATH} -d /dev/sdb -p /usr/local/share/debgen_test
+debgen pc-flash-live -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /dev/sdb -p /usr/local/share/debgen_test
 
 log_stape "Generating newpc squashfs in previous live system (block device sdb)"
 debgen dump-default-live-json > /tmp/dmgr_live.json
 diskhdr /tmp/dmgr_live.json mount 0 /dev/sdb /mnt
 rm -f /mnt/live/filesystem.squashfs
-debgen mklive-squashfs -s ${TEST_CHROOT_PATH} -d /mnt/live/filesystem.squashfs -p /usr/local/share/debgen_test
+debgen mklive-squashfs -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /mnt/live/filesystem.squashfs -p /usr/local/share/debgen_test
 diskhdr /tmp/dmgr_live.json umount 0 /dev/sdb /mnt
 
 log_stape "Generating pc system in block device sdc"
-debgen pc-flash -s ${TEST_CHROOT_PATH} -d /dev/sdc
+debgen pc-flash  -C XXXAPTCACHERXXX -s ${TEST_CHROOT_PATH} -d /dev/sdc
 
 
 

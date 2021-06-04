@@ -584,15 +584,16 @@ Usage: $DEBG_NAME $DEBG_CMD_NAME [OPTIONS]
   Convert a chroot to a live system an flash it to a block device or a file.
 
 OPTIONS:
-  -a <PKG>, --add-package=<PKG> Add following debian package to the image
-  -d <DST>, --destination <DST> Destination path
-  -e <EXE>, --exec=<EXE>        Run executable into the new system
-  -h, --help                    Display this help
-  -i, --install-deb                  Add debian file to install
-  -s <SRC>, --source=<SRC>      Source chroot directory
+  -a <PKG>, --add-package=<PKG>     Add following debian package to the image
+  -C, --apt-cacher=<APT_CACHE_ADDR> Use an temporary apt cache proxy
+  -d <DST>, --destination <DST>     Destination path
+  -e <EXE>, --exec=<EXE>            Run executable into the new system
+  -h, --help                        Display this help
+  -i, --install-deb                 Add debian file to install
+  -s <SRC>, --source=<SRC>          Source chroot directory
 "
 
-    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:d:e:hi:s:' -l 'add-package:,destination:,exec:,help,install-deb:,source:' -- "$@")
+    OPTS=$(getopt -n "$DEBG_CMD_NAME" -o 'a:C:d:e:hi:s:' -l 'add-package:,apt-cacher:,destination:,exec:,help,install-deb:,source:' -- "$@")
     #Bad arguments
     if [ $? -ne 0 ]; then
         echo_err "Bad arguments.\n"
@@ -604,6 +605,11 @@ OPTIONS:
             '-a'|'--add-package')
                 shift
                 DEBG_ADD_PKG_LIST="$DEBG_ADD_PKG_LIST $1"
+                shift
+                ;;
+            '-C'|'--apt-cacher')
+                shift
+                DEBG_APT_CACHER="$1"
                 shift
                 ;;
             '-d'|'--destination')
