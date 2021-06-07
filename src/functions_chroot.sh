@@ -731,6 +731,9 @@ EOF
     if [ -n "$DEBG_PERSISTENCE_PATHS" ]; then
         mkdir ${DEBG_TMP_DIR}/live/persistence
         for ppath in $DEBG_PERSISTENCE_PATHS; do
+            if [ ! -d ${DEBG_TMP_DIR}/chroot${ppath} ]; then
+                mkdir -p ${DEBG_TMP_DIR}/chroot${ppath}
+            fi
             mv ${DEBG_TMP_DIR}/chroot${ppath} ${DEBG_TMP_DIR}/live/persistence
             echo "$ppath source=persistence/$(basename $ppath)" >> ${DEBG_TMP_DIR}/live/persistence.conf
         done

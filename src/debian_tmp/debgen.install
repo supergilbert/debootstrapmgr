@@ -3,4 +3,5 @@ src/functions.sh usr/lib/debgen
 src/functions_chroot.sh usr/lib/debgen
 src/functions_flash.sh usr/lib/debgen
 src/grub_stage2_eltorito usr/lib/debgen
+src/get_aptsources_entry_data.py usr/lib/debgen
 debian/_debgen usr/share/zsh/vendor-completions/
