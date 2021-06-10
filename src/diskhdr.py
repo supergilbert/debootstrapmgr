@@ -113,6 +113,9 @@ def dkhr_check_disk_repr(disk_repr):
                                 "msftdata", "irst", "esp", "chromeos_kernel",
                                 "bls_boot"]:
                     raise DiskHandlerException("Unexpected flag %s" % flag)
+        if "extfsoptions" in part.keys():
+            if not "ext" in part["type"]:
+                die(1, "extfsoptions not supported by %s" % part["type"])
 
 def check_disks_repr_list(disks_list):
     if len(disks_list) == 0:
@@ -268,6 +271,9 @@ def gen_mkfs_cmd(part_list, blk_prefix):
             new_mkfs_cmd = "mkfs.ext4 -F"
             if "fsname" in part.keys():
                 new_mkfs_cmd += " -L %s" % part["fsname"]
+            if "extfsoptions" in part.keys():
+                for option in part["extfsoptions"]:
+                    new_mkfs_cmd += " -O %s" % option
         elif part["type"] == "linux-swap":
             new_mkfs_cmd = "mkswap -f"
             if "fsname" in part.keys():
